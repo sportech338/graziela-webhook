@@ -1,18 +1,9 @@
 from flask import Flask, request, jsonify
-import openai
-import os
 
 app = Flask(__name__)
 
-client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-
-BASE_PROMPT = """
-Você é Graziela, vendedora da Sportech.
-
-Fale como se estivesse digitando no WhatsApp, com pausas reais (\\n\\n), tom acolhedor e humano.
-
-Nunca responda como um robô. Converse com empatia, leveza e escuta ativa.
-"""
+# Mensagem fixa para teste (sem uso do OpenAI ainda)
+RESPOSTA_FIXA = "Oi! Tudo bem? 👋 Essa é uma resposta teste da Graziela."
 
 @app.route("/", methods=["GET"])
 def home():
@@ -24,22 +15,11 @@ def webhook():
     payload = data.get("payload", {})
 
     user_message = payload.get("var_480", "")
+    print("🔹 Mensagem recebida:", user_message)
 
-    messages = [
-        {"role": "system", "content": BASE_PROMPT},
-        {"role": "user", "content": user_message}
-    ]
+    reply = RESPOSTA_FIXA  # Resposta fixa para teste
 
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=messages,
-        temperature=0.85,
-        max_tokens=700
-    )
-
-    reply = response.choices[0].message.content.strip()
-
-    # ✅ Retorno com a variável exata esperada pela automação
+    # Retorno no formato que a Reportana espera
     return jsonify({
         "payload": {
             "var_273": reply
