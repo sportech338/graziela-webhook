@@ -1,10 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request
 import openai
 import os
 
 app = Flask(__name__)
 
-# ✅ Aqui está a correção
+# ✅ Novo cliente compatível com OpenAI >= 1.x
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 BASE_PROMPT = """
@@ -22,8 +22,8 @@ def home():
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
+    payload = data.get("payload", {})
 
-    payload = data.get("payload", {})  # ← recebe o conteúdo da Reportana
     user_message = payload.get("var_480", "")
     phone = payload.get("phone", "")
 
@@ -41,7 +41,8 @@ def webhook():
 
     reply = response.choices[0].message.content.strip()
 
-    return jsonify({"reply": reply})
+    # ✅ Retorna resposta como texto puro para usar {{ payload.resposta_gpt }} na Reportana
+    return reply
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
