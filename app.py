@@ -41,7 +41,7 @@ def webhook():
 
     reply = response.choices[0].message.content.strip()
 
-    return jsonify({"resposta_gpt": reply})
+    return jsonify({"payload": {"resposta_gpt": reply}})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
