@@ -4,8 +4,10 @@ import os
 
 app = Flask(__name__)
 
+# Cliente OpenAI
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
+# Prompt base da personagem Graziela
 BASE_PROMPT = """
 Você é Graziela, vendedora da Sportech.
 
@@ -39,11 +41,9 @@ def webhook():
 
     reply = response.choices[0].message.content.strip()
 
-    # ✅ Retorno com a variável exata esperada pela automação
+    # ✅ Retorno ideal para que a Reportana envie direto no WhatsApp
     return jsonify({
-        "payload": {
-            "var_273": reply
-        }
+        "reply": reply
     })
 
 if __name__ == "__main__":
