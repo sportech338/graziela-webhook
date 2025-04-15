@@ -20,25 +20,29 @@ def home():
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    data = request.get_json()
-    user_message = data.get("message", "")
-    phone = data.get("phone", "")
+    try:
+        data = request.get_json()
+        user_message = data.get("message", "")
+        phone = data.get("phone", "")
 
-    messages = [
-        {"role": "system", "content": BASE_PROMPT},
-        {"role": "user", "content": user_message}
-    ]
+        messages = [
+            {"role": "system", "content": BASE_PROMPT},
+            {"role": "user", "content": user_message}
+        ]
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4o",
-        messages=messages,
-        temperature=0.85,
-        max_tokens=700
-    )
+        response = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=messages,
+            temperature=0.85,
+            max_tokens=700
+        )
 
-    reply = response.choices[0].message.content.strip()
+        reply = response.choices[0].message.content.strip()
+        return jsonify({"reply": reply})
 
-    return jsonify({"reply": reply})
+    except Exception as e:
+        print("❌ ERRO NO WEBHOOK:", e)
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
