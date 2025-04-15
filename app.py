@@ -39,8 +39,12 @@ def webhook():
 
     reply = response.choices[0].message.content.strip()
 
-    # ✅ Agora retorna direto como { "resposta_gpt": "..." }
-    return jsonify({ "resposta_gpt": reply })
+    # ✅ Retorna no formato que a Reportana exige
+    return jsonify({
+        "payload": {
+            "resposta_gpt": reply
+        }
+    })
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
