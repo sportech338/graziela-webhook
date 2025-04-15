@@ -27,6 +27,8 @@ def webhook():
     user_message = payload.get("var_480", "")
     phone = payload.get("phone", "")
 
+    print("🔹 Mensagem recebida:", user_message)
+
     messages = [
         {"role": "system", "content": BASE_PROMPT},
         {"role": "user", "content": user_message}
@@ -40,6 +42,7 @@ def webhook():
     )
 
     reply = response.choices[0].message.content.strip()
+    print("✅ Resposta gerada:", reply)
 
     return jsonify({"payload": {"resposta_gpt": reply}})
 
