@@ -39,10 +39,10 @@ def webhook():
 
     reply = response.choices[0].message.content.strip()
 
-    # ✅ Retorna no formato que a Reportana exige
+    # ✅ Retorno com a variável exata esperada pela automação
     return jsonify({
         "payload": {
-            "resposta_gpt": reply
+            "var_273": reply
         }
     })
 
