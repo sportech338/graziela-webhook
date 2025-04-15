@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import openai
 import os
 
@@ -41,8 +41,7 @@ def webhook():
 
     reply = response.choices[0].message.content.strip()
 
-    # ✅ Retorna resposta como texto puro para usar {{ payload.resposta_gpt }} na Reportana
-    return reply
+    return jsonify({"resposta_gpt": reply})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
