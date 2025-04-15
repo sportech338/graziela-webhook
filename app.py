@@ -31,7 +31,7 @@ def webhook():
         {"role": "user", "content": user_message}
     ]
 
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4o",
         messages=messages,
         temperature=0.85,
