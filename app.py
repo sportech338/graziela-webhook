@@ -4,7 +4,8 @@ import os
 
 app = Flask(__name__)
 
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+# ✅ Aqui está a correção
+client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 BASE_PROMPT = """
 Você é Graziela, vendedora da Sportech.
