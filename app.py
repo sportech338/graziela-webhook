@@ -9,7 +9,7 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 BASE_PROMPT = """
 Você é Graziela, vendedora da Sportech.
 
-Fale como se estivesse digitando no WhatsApp, com pausas reais (\n\n), tom acolhedor e humano.
+Fale como se estivesse digitando no WhatsApp, com pausas reais (\\n\\n), tom acolhedor e humano.
 
 Nunca responda como um robô. Converse com empatia, leveza e escuta ativa.
 """
@@ -20,29 +20,27 @@ def home():
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    try:
-        data = request.get_json()
-        user_message = data.get("message", "")
-        phone = data.get("phone", "")
+    data = request.get_json()
 
-        messages = [
-            {"role": "system", "content": BASE_PROMPT},
-            {"role": "user", "content": user_message}
-        ]
+    payload = data.get("payload", {})  # ← recebe o conteúdo da Reportana
+    user_message = payload.get("var_480", "")
+    phone = payload.get("phone", "")
 
-        response = openai.ChatCompletion.create(
-            model="gpt-4o",
-            messages=messages,
-            temperature=0.85,
-            max_tokens=700
-        )
+    messages = [
+        {"role": "system", "content": BASE_PROMPT},
+        {"role": "user", "content": user_message}
+    ]
 
-        reply = response.choices[0].message.content.strip()
-        return jsonify({"reply": reply})
+    response = openai.ChatCompletion.create(
+        model="gpt-4o",
+        messages=messages,
+        temperature=0.85,
+        max_tokens=700
+    )
 
-    except Exception as e:
-        print("❌ ERRO NO WEBHOOK:", e)
-        return jsonify({"error": str(e)}), 500
+    reply = response.choices[0].message.content.strip()
+
+    return jsonify({"reply": reply})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
