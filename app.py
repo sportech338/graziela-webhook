@@ -4,7 +4,7 @@ import os
 
 app = Flask(__name__)
 
-# ✅ Novo cliente compatível com OpenAI >= 1.x
+# Novo cliente compatível com OpenAI >= 1.x
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 BASE_PROMPT = """
@@ -25,9 +25,6 @@ def webhook():
     payload = data.get("payload", {})
 
     user_message = payload.get("var_480", "")
-    phone = payload.get("phone", "")
-
-    print("🔹 Mensagem recebida:", user_message)
 
     messages = [
         {"role": "system", "content": BASE_PROMPT},
@@ -42,9 +39,9 @@ def webhook():
     )
 
     reply = response.choices[0].message.content.strip()
-    print("✅ Resposta gerada:", reply)
 
-    return jsonify({"payload": {"resposta_gpt": reply}})
+    # ✅ Retorno para ser lido como {{ payload.resposta_gpt }}
+    return jsonify({ "payload": { "resposta_gpt": reply } })
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
