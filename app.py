@@ -2,13 +2,14 @@ from flask import Flask, request, jsonify, make_response
 import openai
 import os
 import time
+from datetime import datetime
 
 app = Flask(__name__)
 
-# 🔐 Autenticação com a OpenAI (usando variável de ambiente segura)
+# 🔐 Autenticação com a OpenAI
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-# 💬 Prompt padrão da Graziela (vendedora empática, estilo WhatsApp)
+# 💬 Prompt base com estilo WhatsApp e tom humano
 BASE_PROMPT = """
 Você é Graziela, vendedora da Sportech.
 
@@ -24,19 +25,20 @@ def home():
 @app.route("/webhook", methods=["POST"])
 def webhook():
     start = time.time()
+    now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-    # 📥 Recebe o JSON enviado pela Reportana
+    # 📥 Entrada da Reportana
     data = request.get_json()
     payload = data.get("payload", {})
-    user_message = payload.get("var_480", "")
+    user_message = payload.get("var_480", "[mensagem vazia]")
 
-    # 🤖 Prepara a conversa com o GPT
+    # 🤖 Monta a conversa com o GPT
     messages = [
         {"role": "system", "content": BASE_PROMPT},
         {"role": "user", "content": user_message}
     ]
 
-    # 🧠 Chamada à OpenAI com modelo GPT-4o
+    # 🧠 Chamada ao modelo GPT-4o
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=messages,
@@ -45,12 +47,17 @@ def webhook():
     )
 
     reply = response.choices[0].message.content.strip()
+    elapsed = round(time.time() - start, 2)
 
-    elapsed = time.time() - start
-    print(f"⏱️ Tempo de resposta GPT: {elapsed:.2f} segundos")
-    print(f"📤 Resposta enviada: {reply}")
+    # 📋 Log no terminal (Render)
+    print("\n========== [GRAZIELA LOG] ==========")
+    print(f"📆 {now}")
+    print(f"📩 Mensagem recebida: {user_message}")
+    print(f"🤖 Resposta gerada: {reply}")
+    print(f"⏱️ Tempo de resposta: {elapsed} segundos")
+    print("=====================================\n")
 
-    # ✅ Retorno correto no formato que a Reportana espera
+    # ✅ Retorno correto para a Reportana
     response_json = {
         "payload": {
             "resposta": reply
@@ -61,7 +68,6 @@ def webhook():
     resp.headers["Content-Type"] = "application/json"
     return resp
 
-# ❗ Em produção, o Render usará gunicorn para iniciar este app,
-# então este bloco só serve para testes locais (pode manter se quiser testar localmente)
+# 🧪 Apenas para testes locais
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
