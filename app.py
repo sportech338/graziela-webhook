@@ -50,10 +50,10 @@ def webhook():
     print(f"⏱️ Tempo de resposta GPT: {elapsed:.2f} segundos")
     print(f"📤 Resposta enviada: {reply}")
 
-    # ✅ Força retorno JSON com header explícito
+    # ✅ Agora retornando a variável no campo 'resposta'
     resp = make_response(jsonify({
         "payload": {
-            "var_273": reply
+            "resposta": reply  # <- é aqui que a Reportana espera!
         }
     }), 200)
     resp.headers["Content-Type"] = "application/json"
