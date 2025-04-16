@@ -63,10 +63,11 @@ def webhook():
     print(f"⏱️ Tempo de resposta: {elapsed} segundos")
     print("=====================================\n")
 
-    # ✅ Retorno correto para a Reportana
+    # ✅ Retorno para a Reportana
     response_json = {
         "payload": {
-            "resposta": resposta_formatada
+            "resposta": resposta_formatada,
+            "debug_resposta": resposta_formatada  # ← usada para teste separado
         }
     }
 
