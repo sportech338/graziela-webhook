@@ -9,6 +9,9 @@ app = Flask(__name__)
 # 🔐 Autenticação com a OpenAI
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
+# 🧠 Memória dos históricos por cliente
+historicos = {}
+
 # 💬 Prompt base completo da Graziela
 BASE_PROMPT = """
 Você é Graziela, vendedora da Sportech. Seu papel não é vender um produto. Seu papel é ajudar pessoas a retomarem sua qualidade de vida com consciência, empatia e clareza.
@@ -126,44 +129,56 @@ Ela vende quando ajuda — e ajuda de verdade quando escuta. A conversa é o cam
 
 @app.route("/", methods=["GET"])
 def home():
-    return "Servidor da Graziela ativo 💬🧠"
+    return "Servidor da Graziela com memória ativa 💬🧠"
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
     start = time.time()
     now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-    # 📥 Recebe o JSON da Reportana com a mensagem do cliente
+    # 📥 Recebe o JSON da Reportana com o campo "combo"
     data = request.get_json()
     payload = data.get("payload", {})
-    user_message = payload.get("var_480", "[mensagem vazia]")
+    combo = payload.get("combo", "")
 
-    # 🤖 Monta a conversa com o GPT-4o
+    try:
+        user_id, user_message = combo.split("|||", 1)
+    except ValueError:
+        user_id = "anonimo"
+        user_message = combo
+
+    historico = historicos.get(user_id, "")
+
     messages = [
-        {"role": "system", "content": BASE_PROMPT},
-        {"role": "user", "content": user_message}
+        {"role": "system", "content": BASE_PROMPT}
     ]
+    if historico:
+        messages.append({"role": "user", "content": historico})
+    messages.append({"role": "user", "content": user_message})
 
-    # 🧠 Gera a resposta da IA
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=messages,
-        temperature=0.5,
-        max_tokens=300
-    )
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            temperature=0.5,
+            max_tokens=300
+        )
+        reply = response.choices[0].message.content.strip()
+    except Exception as e:
+        reply = "Tivemos uma instabilidade agora, mas pode me mandar de novo? 🙏"
 
-    reply = response.choices[0].message.content.strip()
-    elapsed = round(time.time() - start, 2)
+    novo_historico = f"{historico}\nCliente: {user_message}\nGraziela: {reply}".strip()
+    historicos[user_id] = novo_historico
 
-    # 📋 Log da conversa no terminal (Render)
-    print("\n========== [GRAZIELA LOG] ==========")
+    print("\n========== GRAZIELA LOG ==========")
     print(f"📆 {now}")
-    print(f"📩 Mensagem recebida: {user_message}")
-    print(f"🤖 Resposta gerada: {reply}")
-    print(f"⏱️ Tempo de resposta: {elapsed} segundos")
+    print(f"👤 Cliente: {user_id}")
+    print(f"📩 Mensagem: {user_message}")
+    print(f"🤖 Resposta: {reply}")
+    print(f"📚 Histórico:\n{novo_historico}")
+    print(f"⏱️ Tempo de resposta: {round(time.time() - start, 2)} segundos")
     print("=====================================\n")
 
-    # ✅ Retorna a resposta no formato esperado pela Reportana
     response_json = {
         "payload": {
             "resposta": reply
