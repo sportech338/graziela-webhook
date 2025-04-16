@@ -5,8 +5,10 @@ import time
 
 app = Flask(__name__)
 
+# 🔐 Autenticação OpenAI
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
+# 📋 Prompt base da Graziela
 BASE_PROMPT = """
 Você é Graziela, vendedora da Sportech.
 
@@ -15,19 +17,26 @@ Fale como se estivesse digitando no WhatsApp, com pausas reais (\\n\\n), tom aco
 Nunca responda como um robô. Converse com empatia, leveza e escuta ativa.
 """
 
+@app.route("/", methods=["GET"])
+def home():
+    return "Servidor da Graziela ativo 💬🧠"
+
 @app.route("/webhook", methods=["POST"])
 def webhook():
     start = time.time()
 
+    # 📥 Recebe os dados da Reportana
     data = request.get_json()
     payload = data.get("payload", {})
     user_message = payload.get("var_480", "")
 
+    # 🤖 Monta a conversa com o modelo
     messages = [
         {"role": "system", "content": BASE_PROMPT},
         {"role": "user", "content": user_message}
     ]
 
+    # 🧠 Requisição para o GPT
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=messages,
@@ -41,12 +50,12 @@ def webhook():
     print(f"⏱️ Tempo de resposta GPT: {elapsed:.2f} segundos")
     print(f"📤 Resposta enviada: {reply}")
 
-    # Força o retorno como JSON válido
+    # ✅ Força retorno JSON com header explícito
     resp = make_response(jsonify({
         "payload": {
             "var_273": reply
         }
-    }))
+    }), 200)
     resp.headers["Content-Type"] = "application/json"
     return resp
 
