@@ -142,19 +142,19 @@ def webhook():
     combo = payload.get("var_480", "")
 
     try:
-        user_id, user_message = combo.split("|||", 1)
+        telefone, mensagem = combo.split("|||", 1)
     except ValueError:
-        user_id = "anonimo"
-        user_message = combo.strip()
+        telefone = "anonimo"
+        mensagem = combo.strip()
 
-    historico = historicos.get(user_id, "")
+    historico = historicos.get(telefone, "")
 
     messages = [
         {"role": "system", "content": BASE_PROMPT}
     ]
     if historico:
         messages.append({"role": "user", "content": historico})
-    messages.append({"role": "user", "content": user_message})
+    messages.append({"role": "user", "content": mensagem})
 
     try:
         response = client.chat.completions.create(
@@ -167,13 +167,13 @@ def webhook():
     except Exception as e:
         reply = "Tivemos uma instabilidade agora, mas pode me mandar de novo? 🙏"
 
-    novo_historico = f"{historico}\nCliente: {user_message}\nGraziela: {reply}".strip()
-    historicos[user_id] = novo_historico
+    novo_historico = f"{historico}\nCliente: {mensagem}\nGraziela: {reply}".strip()
+    historicos[telefone] = novo_historico
 
     print("\n========== GRAZIELA LOG ==========")
     print(f"📆 {now}")
-    print(f"👤 Cliente: {user_id}")
-    print(f"📩 Mensagem: {user_message}")
+    print(f"📱 Telefone: {telefone}")
+    print(f"📩 Mensagem: {mensagem}")
     print(f"🤖 Resposta: {reply}")
     print(f"📚 Histórico:\n{novo_historico}")
     print(f"⏱️ Tempo de resposta: {round(time.time() - start, 2)} segundos")
