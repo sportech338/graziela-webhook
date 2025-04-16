@@ -47,7 +47,7 @@ def webhook():
     )
 
     reply = response.choices[0].message.content.strip()
-    reply = reply.replace("\n\n", "\n")  # ⚠️ substitui quebras duplas por simples
+    reply = reply.replace("\n\n", "\n")  # ← evita quebra silenciosa na Reportana
     elapsed = round(time.time() - start, 2)
 
     # 📋 Log da conversa no terminal (Render)
@@ -56,7 +56,6 @@ def webhook():
     print(f"📩 Mensagem recebida: {user_message}")
     print(f"🤖 Resposta gerada: {reply}")
     print(f"⏱️ Tempo de resposta: {elapsed} segundos")
-    print("=====================================\n")
 
     # ✅ Retorna a resposta no formato esperado pela Reportana
     response_json = {
@@ -64,6 +63,9 @@ def webhook():
             "resposta": reply
         }
     }
+
+    print(f"📤 Retorno enviado para Reportana: {response_json}")
+    print("=====================================\n")
 
     resp = make_response(jsonify(response_json), 200)
     resp.headers["Content-Type"] = "application/json"
