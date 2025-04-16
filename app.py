@@ -27,18 +27,18 @@ def webhook():
     start = time.time()
     now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-    # 📥 Entrada da Reportana
+    # 📥 Recebe o JSON da Reportana com a mensagem do cliente
     data = request.get_json()
     payload = data.get("payload", {})
     user_message = payload.get("var_480", "[mensagem vazia]")
 
-    # 🤖 Monta a conversa com o GPT
+    # 🤖 Monta a conversa com o GPT-4o
     messages = [
         {"role": "system", "content": BASE_PROMPT},
         {"role": "user", "content": user_message}
     ]
 
-    # 🧠 Chamada ao modelo GPT-4o
+    # 🧠 Gera a resposta da IA
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=messages,
@@ -49,7 +49,7 @@ def webhook():
     reply = response.choices[0].message.content.strip()
     elapsed = round(time.time() - start, 2)
 
-    # 📋 Log no terminal (Render)
+    # 📋 Log da conversa no terminal (Render)
     print("\n========== [GRAZIELA LOG] ==========")
     print(f"📆 {now}")
     print(f"📩 Mensagem recebida: {user_message}")
@@ -57,7 +57,7 @@ def webhook():
     print(f"⏱️ Tempo de resposta: {elapsed} segundos")
     print("=====================================\n")
 
-    # ✅ Retorno correto para a Reportana
+    # ✅ Retorna a resposta no formato esperado pela Reportana
     response_json = {
         "payload": {
             "resposta": reply
@@ -68,6 +68,6 @@ def webhook():
     resp.headers["Content-Type"] = "application/json"
     return resp
 
-# 🧪 Apenas para testes locais
+# 🧪 Executa localmente apenas em modo dev
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
