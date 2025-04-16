@@ -47,6 +47,7 @@ def webhook():
     )
 
     reply = response.choices[0].message.content.strip()
+    reply = reply.replace("\n\n", "\n")  # ⚠️ substitui quebras duplas por simples
     elapsed = round(time.time() - start, 2)
 
     # 📋 Log da conversa no terminal (Render)
