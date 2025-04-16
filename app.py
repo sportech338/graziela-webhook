@@ -5,10 +5,10 @@ import time
 
 app = Flask(__name__)
 
-# 🔐 Autenticação OpenAI
+# 🔐 Autenticação com a OpenAI (usando variável de ambiente segura)
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-# 📋 Prompt base da Graziela
+# 💬 Prompt padrão da Graziela (vendedora empática, estilo WhatsApp)
 BASE_PROMPT = """
 Você é Graziela, vendedora da Sportech.
 
@@ -25,18 +25,18 @@ def home():
 def webhook():
     start = time.time()
 
-    # 📥 Recebe os dados da Reportana
+    # 📥 Recebe o JSON enviado pela Reportana
     data = request.get_json()
     payload = data.get("payload", {})
     user_message = payload.get("var_480", "")
 
-    # 🤖 Monta a conversa com o modelo
+    # 🤖 Prepara a conversa com o GPT
     messages = [
         {"role": "system", "content": BASE_PROMPT},
         {"role": "user", "content": user_message}
     ]
 
-    # 🧠 Requisição para o GPT
+    # 🧠 Chamada à OpenAI com modelo GPT-4o
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=messages,
@@ -50,14 +50,18 @@ def webhook():
     print(f"⏱️ Tempo de resposta GPT: {elapsed:.2f} segundos")
     print(f"📤 Resposta enviada: {reply}")
 
-    # ✅ Agora retornando a variável no campo 'resposta'
-    resp = make_response(jsonify({
+    # ✅ Retorno correto no formato que a Reportana espera
+    response_json = {
         "payload": {
-            "resposta": reply  # <- é aqui que a Reportana espera!
+            "resposta": reply
         }
-    }), 200)
+    }
+
+    resp = make_response(jsonify(response_json), 200)
     resp.headers["Content-Type"] = "application/json"
     return resp
 
+# ❗ Em produção, o Render usará gunicorn para iniciar este app,
+# então este bloco só serve para testes locais (pode manter se quiser testar localmente)
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
