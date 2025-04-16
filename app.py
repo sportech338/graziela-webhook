@@ -136,16 +136,16 @@ def webhook():
     start = time.time()
     now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-    # 📥 Recebe o JSON da Reportana com o campo "combo"
+    # 📥 Recebe o JSON da Reportana com o campo "var_480"
     data = request.get_json()
     payload = data.get("payload", {})
-    combo = payload.get("combo", "")
+    combo = payload.get("var_480", "")
 
     try:
         user_id, user_message = combo.split("|||", 1)
     except ValueError:
         user_id = "anonimo"
-        user_message = combo
+        user_message = combo.strip()
 
     historico = historicos.get(user_id, "")
 
