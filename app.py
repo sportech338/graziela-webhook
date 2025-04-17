@@ -143,16 +143,11 @@ def webhook():
     payload = data.get("payload", {})
     print("📦 Payload recebido:", payload)
 
-    var_480 = payload.get("var_480", "")
-    print("🧾 Conteúdo de var_480:", var_480)
+    mensagem = payload.get("var_480", "").strip()
+    telefone = data.get("customer", {}).get("phone", "anonimo").strip()
 
-    try:
-        telefone, mensagem = var_480.split("|||", 1)
-        telefone = telefone.strip()
-        mensagem = mensagem.strip()
-    except ValueError:
-        telefone = "anonimo"
-        mensagem = var_480.strip()
+    print("📱 Telefone identificado:", telefone)
+    print("💬 Mensagem recebida:", mensagem)
 
     # 🧠 Recupera o histórico anterior do cliente
     historico = historicos.get(telefone, "")
