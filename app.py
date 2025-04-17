@@ -3,6 +3,7 @@ import openai
 import os
 import time
 from datetime import datetime
+import json
 
 app = Flask(__name__)
 
@@ -55,7 +56,7 @@ E então pergunta com calma:
 
 "Isso acontece com frequência? Tem te impedido de fazer algo que gosta?"
 
-🩺 QUANDO O CLIENTE DEMONSTRA INTERESSE PELO FLEXLIVE
+🧰 QUANDO O CLIENTE DEMONSTRA INTERESSE PELO FLEXLIVE
 
 Você responde de forma leve e personalizada, sempre conectando com o que o cliente sente:
 
@@ -136,7 +137,6 @@ def webhook():
     start = time.time()
     now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-    # 📅 Recebe o JSON da Reportana
     try:
         data = request.get_json(force=True)
     except Exception as e:
@@ -151,27 +151,37 @@ def webhook():
     print("📦 Payload recebido:", payload)
 
     var_480_raw = payload.get("var_480")
+    mensagem = ""
+
     if isinstance(var_480_raw, str):
-        mensagem = var_480_raw.strip()
-    elif var_480_raw is None:
-        mensagem = "[mensagem de áudio recebida]"
+        conteudo = var_480_raw.strip()
+        try:
+            parsed = json.loads(conteudo)
+            if isinstance(parsed, dict):
+                tipo = parsed.get("type", "desconhecido")
+                mensagem = f"[mensagem estruturada recebida: {tipo}]"
+                print("📎 var_480 como JSON estruturado:", parsed)
+            else:
+                mensagem = conteudo
+        except json.JSONDecodeError:
+            mensagem = conteudo
+    elif isinstance(var_480_raw, dict):
+        tipo = var_480_raw.get("type", "desconhecido")
+        mensagem = f"[mensagem estruturada recebida: {tipo}]"
+        print("📎 var_480 como dict (não-string):", var_480_raw)
     else:
-        mensagem = str(var_480_raw).strip()
+        mensagem = "[mensagem de áudio recebida]"
 
     telefone = data.get("customer", {}).get("phone", "anonimo").strip()
     print("📱 Telefone identificado:", telefone)
     print("💬 Mensagem recebida:", mensagem)
 
-    # 🧠 Recupera o histórico anterior do cliente
     historico = historicos.get(telefone, "")
-
-    # 🗣️ Monta a conversa para o GPT
     messages = [{"role": "system", "content": BASE_PROMPT}]
     if historico:
         messages.append({"role": "user", "content": historico})
     messages.append({"role": "user", "content": mensagem})
 
-    # 💬 Gera a resposta da IA
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -183,11 +193,9 @@ def webhook():
     except Exception:
         reply = "Tivemos uma instabilidade agora, mas pode me mandar de novo? 🙏"
 
-    # 🧠 Atualiza o histórico de conversa
     novo_historico = f"{historico}\nCliente: {mensagem}\nGraziela: {reply}".strip()
     historicos[telefone] = novo_historico
 
-    # 📋 Log de execução
     print("\n========== [GRAZIELA LOG] ==========")
     print(f"🗖️ {now}")
     print(f"📱 Telefone: {telefone}")
@@ -197,7 +205,6 @@ def webhook():
     print(f"⏱️ Tempo de resposta: {round(time.time() - start, 2)} segundos")
     print("=====================================\n")
 
-    # ✅ Retorna a resposta no formato esperado pela Reportana
     response_json = {
         "payload": {
             "resposta": reply
@@ -208,6 +215,5 @@ def webhook():
     resp.headers["Content-Type"] = "application/json"
     return resp
 
-# 🔪 Executa localmente apenas em modo dev
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
