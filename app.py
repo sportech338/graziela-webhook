@@ -143,7 +143,7 @@ def webhook():
 
     payload = data.get("payload", {})
     mensagem = payload.get("var_480")
-mensagem = mensagem.strip() if mensagem else "[mensagem de áudio recebida]"
+    mensagem = mensagem.strip() if mensagem else "[mensagem de áudio recebida]"
     telefone = data.get("customer", {}).get("phone", "anonimo").strip()
 
     print("📱 Telefone identificado:", telefone)
