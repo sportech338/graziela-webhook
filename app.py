@@ -13,6 +13,7 @@ client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 historicos = {}
 
 # 💬 Prompt base completo da Graziela
+# 💬 Prompt base completo da Graziela
 BASE_PROMPT = """
 Você é Graziela, vendedora da Sportech. Seu papel não é vender um produto. Seu papel é ajudar pessoas a retomarem sua qualidade de vida com consciência, empatia e clareza.
 
@@ -136,17 +137,18 @@ def webhook():
     start = time.time()
     now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-    # 📥 Recebe a mensagem vinda da Reportana
+    # 📥 Recebe o JSON da Reportana com a mensagem do cliente (telefone|||mensagem)
     data = request.get_json()
     payload = data.get("payload", {})
-    combo = payload.get("var_480", "")
+    var_480 = payload.get("var_480", "")
 
-    # 🔍 Extrai o telefone e a mensagem do campo var_480
     try:
-        telefone, mensagem = combo.split("|||", 1)
+        telefone, mensagem = var_480.split("|||", 1)
+        telefone = telefone.strip()
+        mensagem = mensagem.strip()
     except ValueError:
         telefone = "anonimo"
-        mensagem = combo.strip()
+        mensagem = var_480.strip()
 
     # 🧠 Recupera o histórico anterior do cliente
     historico = historicos.get(telefone, "")
@@ -166,7 +168,7 @@ def webhook():
             max_tokens=300
         )
         reply = response.choices[0].message.content.strip()
-    except Exception as e:
+    except Exception:
         reply = "Tivemos uma instabilidade agora, mas pode me mandar de novo? 🙏"
 
     # 🧠 Atualiza o histórico de conversa
