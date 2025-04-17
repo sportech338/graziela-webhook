@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 import requests
 from io import BytesIO
+import json
 
 app = Flask(__name__)
 
@@ -139,7 +140,7 @@ def webhook():
     now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
     data = request.get_json()
-    print("🔎 JSON completo recebido:", data)
+    print("🔎 JSON completo recebido:\n" + json.dumps(data, indent=2, ensure_ascii=False))
 
     payload = data.get("payload", {})
     mensagem = payload.get("var_480")
