@@ -136,10 +136,15 @@ def webhook():
     start = time.time()
     now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-    # 📥 Recebe o JSON da Reportana com a mensagem do cliente (telefone|||mensagem)
-    data = request.get_json()
-    payload = data.get("payload", {})
-    var_480 = payload.get("var_480", "")
+    # 📥 Recebe o JSON da Reportana
+data = request.get_json()
+print("🔎 JSON completo recebido:", data)
+
+payload = data.get("payload", {})
+print("📦 Payload recebido:", payload)
+
+var_480 = payload.get("var_480", "")
+print("🧾 Conteúdo de var_480:", var_480)
 
     try:
         telefone, mensagem = var_480.split("|||", 1)
