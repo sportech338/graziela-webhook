@@ -138,77 +138,58 @@ def webhook():
     start = time.time()
     now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-    data = request.get_json() or {}
-    payload = data.get("payload") or {}
+    try:
+        data = request.get_json() or {}
+        print("🔵 Etapa 1: JSON recebido com sucesso")
+    except Exception as e:
+        print(f"❌ Erro ao receber JSON: {e}")
+        return make_response(jsonify({"payload": {"resposta": "Erro ao processar os dados."}}), 400)
+
+    payload = data.get("payload", {})
     mensagem_raw = (payload.get("var_480") or "").strip()
     telefone = (data.get("customer", {}) or {}).get("phone", "anonimo").strip()
 
-    print("🔎 JSON completo recebido:", data)
-    print("📱 Telefone identificado:", telefone)
-    print("💬 Mensagem recebida (raw):", mensagem_raw)
+    print(f"📱 Telefone: {telefone}")
+    print(f"💬 Mensagem recebida (raw): {mensagem_raw}")
 
-    # 🧪 Teste especial para ver o conteúdo da variável da Reportana
-    if mensagem_raw.startswith("🤖 TESTE DE VARIÁVEIS"):
-        print("🧪 Resultado de teste de variáveis da Reportana recebido:")
-        print(mensagem_raw)
-
-        return make_response(jsonify({
-            "payload": {
-                "resposta": "✅ Recebi o resultado do teste com sucesso! Obrigado por enviar 💬"
-            }
-        }), 200)
-
-    # 🎧 Detecta se é áudio no formato "áudio|||<link>"
+    # 🎧 Verifica se é áudio
+    mensagem = mensagem_raw
     if "|||" in mensagem_raw:
         tipo, audio_url = mensagem_raw.split("|||", 1)
         if tipo.strip().lower() in ["áudio", "audio"]:
+            print("🔵 Etapa 2: Áudio identificado")
+            print(f"🔗 Link do áudio: {audio_url}")
             try:
-                print(f"🎵 URL do áudio detectada: {audio_url}")
-                audio_response = requests.get(audio_url)
-                audio_bytes = BytesIO(audio_response.content)
-
-                transcript = client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=("audio.ogg", audio_bytes, "audio/ogg"),
-                    response_format="text"
-                )
-                mensagem = transcript.strip()
+                audio_response = requests.get(audio_url, timeout=10)
+                print(f"🔵 Etapa 3: Requisição do áudio - status: {audio_response.status_code}")
+                if audio_response.status_code == 200:
+                    audio_bytes = BytesIO(audio_response.content)
+                    transcript = client.audio.transcriptions.create(
+                        model="whisper-1",
+                        file=("audio.ogg", audio_bytes, "audio/ogg"),
+                        response_format="text"
+                    )
+                    mensagem = transcript.strip()
+                    print(f"✅ Transcrição concluída: {mensagem}")
+                else:
+                    print("❌ Falha ao baixar o áudio")
+                    mensagem = "Não consegui acessar seu áudio. Pode me contar por mensagem? 😊"
             except Exception as e:
                 print(f"❌ Erro ao transcrever: {e}")
-                mensagem = "Ah, eu não consigo ouvir áudios, mas posso te ajudar por texto! Me conta o que você precisa 😊"
-        else:
-            mensagem = mensagem_raw
-    else:
-        mensagem = mensagem_raw
+                mensagem = "Ah, não consegui ouvir seu áudio, mas posso te ajudar por texto! Me conta o que você precisa 😊"
 
-    # 🧠 Verifica se é a primeira mensagem e se veio de áudio
+    # 🧠 Recupera histórico
     historico = historicos.get(telefone, "")
-    primeiro_contato = not historico.strip()
-    veio_de_audio = mensagem_raw.lower().startswith("audio|||") or mensagem_raw.lower().startswith("áudio|||")
+    print("🔵 Etapa 4: Histórico carregado")
 
-    if primeiro_contato and veio_de_audio:
-        reply = (
-            "Acabei de ouvir aqui 🌟\n\n"
-            "Pode me contar um pouquinho melhor o que está acontecendo? "
-            "Tô aqui pra te ajudar do jeitinho certo 😊"
-        )
-        historicos[telefone] = f"Cliente: {mensagem}\nGraziela: {reply}".strip()
-
-        print("\n========== [GRAZIELA LOG - ÁUDIO INICIAL] ==========")
-        print(f"📆 {now}")
-        print(f"📱 Telefone: {telefone}")
-        print(f"📩 Mensagem (transcrita): {mensagem}")
-        print(f"🤖 Resposta: {reply}")
-        print("=====================================================\n")
-
-        return make_response(jsonify({"payload": {"resposta": reply}}), 200)
-
-    # ✨ Atendimento normal com histórico
+    # ✨ Prepara mensagens para GPT
     messages = [{"role": "system", "content": BASE_PROMPT}]
     if historico:
         messages.append({"role": "user", "content": historico})
     messages.append({"role": "user", "content": mensagem})
+    print("🔵 Etapa 5: Mensagens preparadas para GPT")
 
+    # 💬 Chamada ao GPT
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -217,10 +198,13 @@ def webhook():
             max_tokens=300
         )
         reply = response.choices[0].message.content.strip()
-    except Exception:
+        print("✅ Resposta do GPT recebida")
+    except Exception as e:
+        print(f"❌ Erro ao chamar o GPT: {e}")
         reply = "Tivemos uma instabilidade agora, mas pode me mandar de novo? 🙏"
 
     historicos[telefone] = f"{historico}\nCliente: {mensagem}\nGraziela: {reply}".strip()
+    print("🔵 Etapa 6: Histórico atualizado")
 
     print("\n========== [GRAZIELA LOG] ==========")
     print(f"📆 {now}")
