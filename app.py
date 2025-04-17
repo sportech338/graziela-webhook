@@ -13,6 +13,7 @@ client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 historicos = {}
 
 # 💬 Prompt base completo da Graziela
+# 💬 Prompt base completo da Graziela
 BASE_PROMPT = """
 Você é Graziela, vendedora da Sportech. Seu papel não é vender um produto. Seu papel é ajudar pessoas a retomarem sua qualidade de vida com consciência, empatia e clareza.
 
@@ -137,14 +138,14 @@ def webhook():
     now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
     # 📥 Recebe o JSON da Reportana
-data = request.get_json()
-print("🔎 JSON completo recebido:", data)
+    data = request.get_json()
+    print("🔎 JSON completo recebido:", data)
 
-payload = data.get("payload", {})
-print("📦 Payload recebido:", payload)
+    payload = data.get("payload", {})
+    print("📦 Payload recebido:", payload)
 
-var_480 = payload.get("var_480", "")
-print("🧾 Conteúdo de var_480:", var_480)
+    var_480 = payload.get("var_480", "")
+    print("🧾 Conteúdo de var_480:", var_480)
 
     try:
         telefone, mensagem = var_480.split("|||", 1)
