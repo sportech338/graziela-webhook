@@ -11,7 +11,7 @@ app = Flask(__name__)
 # 🔐 Autenticação com a OpenAI
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-# 🧠 Memória dos históricos por cliente (armazenada em dicionário)
+# 🧠 Memória dos históricos por cliente
 historicos = {}
 
 # 💬 Prompt base completo da Graziela
@@ -139,7 +139,7 @@ def webhook():
     now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
     data = request.get_json()
-    payload = data.get("payload", {})
+    payload = data.get("payload") or {}
     mensagem_raw = payload.get("var_480", "").strip()
     telefone = data.get("customer", {}).get("phone", "anonimo").strip()
 
@@ -147,10 +147,10 @@ def webhook():
     print("📱 Telefone identificado:", telefone)
     print("💬 Mensagem recebida:", mensagem_raw)
 
-    # Detecta se é áudio via separador personalizado
+    # 🎧 Detecta se é áudio via separador personalizado
     if "|||" in mensagem_raw:
         tipo, audio_url = mensagem_raw.split("|||", 1)
-        if tipo.strip().lower() == "áudio":
+        if tipo.strip().lower() in ["áudio", "audio"]:
             try:
                 print(f"🎵 URL do áudio detectada: {audio_url}")
                 audio_response = requests.get(audio_url)
@@ -170,6 +170,7 @@ def webhook():
     else:
         mensagem = mensagem_raw
 
+    # 🤝 Atendimento inicial com áudio
     historico = historicos.get(telefone, "")
     primeiro_contato = not historico.strip()
     veio_de_audio = mensagem_raw.lower().startswith("audio|||") or mensagem_raw.lower().startswith("áudio|||")
@@ -192,7 +193,7 @@ def webhook():
 
         return make_response(jsonify({"payload": {"resposta": reply}}), 200)
 
-    # Atendimento normal com GPT
+    # ✨ Atendimento normal com GPT
     messages = [{"role": "system", "content": BASE_PROMPT}]
     if historico:
         messages.append({"role": "user", "content": historico})
@@ -221,15 +222,7 @@ def webhook():
     print(f"⏱️ Tempo de resposta: {round(time.time() - start, 2)} segundos")
     print("=====================================\n")
 
-    response_json = {
-        "payload": {
-            "resposta": reply
-        }
-    }
-
-    resp = make_response(jsonify(response_json), 200)
-    resp.headers["Content-Type"] = "application/json"
-    return resp
+    return make_response(jsonify({"payload": {"resposta": reply}}), 200)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
