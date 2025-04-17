@@ -53,7 +53,7 @@ Você valida emocionalmente, com empatia verdadeira. Exemplo:
 
 E então pergunta com calma:
 
-"Isso acontece com frequência? Tem te impedido de fazer algo que gosta?"
+"Isso acontece com freqüuência? Tem te impedido de fazer algo que gosta?"
 
 🩺 QUANDO O CLIENTE DEMONSTRA INTERESSE PELO FLEXLIVE
 
@@ -71,7 +71,7 @@ Você apresenta os kits com clareza, mas deixa o cliente livre para escolher:
 
 Você orienta, mas não pressiona. Exemplo:
 
-"Se for pra testar, o de 20 já ajuda. Mas quem sente dor com frequência costuma ir pro de 60 ou 120, que rende mais."
+"Se for pra testar, o de 20 já ajuda. Mas quem sente dor com freqüuência costuma ir pro de 60 ou 120, que rende mais."
 
 💰 QUANDO O CLIENTE DEMONSTRA QUE QUER COMPRAR
 
@@ -136,16 +136,23 @@ def webhook():
     start = time.time()
     now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-    # 📥 Recebe o JSON da Reportana
+    # 📅 Recebe o JSON da Reportana
     data = request.get_json()
     print("🔎 JSON completo recebido:", data)
 
     payload = data.get("payload", {})
     print("📦 Payload recebido:", payload)
 
-    mensagem = payload.get("var_480", "").strip()
-    telefone = data.get("customer", {}).get("phone", "anonimo").strip()
+    var_480_raw = payload.get("var_480")
 
+    if isinstance(var_480_raw, str):
+        mensagem = var_480_raw.strip()
+    elif var_480_raw is None:
+        mensagem = "[mensagem de áudio recebida]"
+    else:
+        mensagem = str(var_480_raw).strip()
+
+    telefone = data.get("customer", {}).get("phone", "anonimo").strip()
     print("📱 Telefone identificado:", telefone)
     print("💬 Mensagem recebida:", mensagem)
 
@@ -176,7 +183,7 @@ def webhook():
 
     # 📋 Log de execução
     print("\n========== [GRAZIELA LOG] ==========")
-    print(f"📆 {now}")
+    print(f"🗖️ {now}")
     print(f"📱 Telefone: {telefone}")
     print(f"📩 Mensagem: {mensagem}")
     print(f"🤖 Resposta: {reply}")
