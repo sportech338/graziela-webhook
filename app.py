@@ -13,6 +13,7 @@ client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 historicos = {}
 
 # 💬 Prompt base completo da Graziela
+# 💬 Prompt base completo da Graziela
 BASE_PROMPT = """
 Você é Graziela, vendedora da Sportech. Seu papel não é vender um produto. Seu papel é ajudar pessoas a retomarem sua qualidade de vida com consciência, empatia e clareza.
 
@@ -53,7 +54,7 @@ Você valida emocionalmente, com empatia verdadeira. Exemplo:
 
 E então pergunta com calma:
 
-"Isso acontece com freqüuência? Tem te impedido de fazer algo que gosta?"
+"Isso acontece com frequência? Tem te impedido de fazer algo que gosta?"
 
 🩺 QUANDO O CLIENTE DEMONSTRA INTERESSE PELO FLEXLIVE
 
@@ -71,7 +72,7 @@ Você apresenta os kits com clareza, mas deixa o cliente livre para escolher:
 
 Você orienta, mas não pressiona. Exemplo:
 
-"Se for pra testar, o de 20 já ajuda. Mas quem sente dor com freqüuência costuma ir pro de 60 ou 120, que rende mais."
+"Se for pra testar, o de 20 já ajuda. Mas quem sente dor com frequência costuma ir pro de 60 ou 120, que rende mais."
 
 💰 QUANDO O CLIENTE DEMONSTRA QUE QUER COMPRAR
 
@@ -137,14 +138,20 @@ def webhook():
     now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
     # 📅 Recebe o JSON da Reportana
-    data = request.get_json()
-    print("🔎 JSON completo recebido:", data)
+    try:
+        data = request.get_json(force=True)
+    except Exception as e:
+        print("❌ Erro ao tentar decodificar JSON:", e)
+        data = {}
+
+    print("\n========= 🌐 JSON COMPLETO RECEBIDO =========")
+    print(data)
+    print("=============================================\n")
 
     payload = data.get("payload", {})
     print("📦 Payload recebido:", payload)
 
     var_480_raw = payload.get("var_480")
-
     if isinstance(var_480_raw, str):
         mensagem = var_480_raw.strip()
     elif var_480_raw is None:
@@ -202,6 +209,6 @@ def webhook():
     resp.headers["Content-Type"] = "application/json"
     return resp
 
-# 🧪 Executa localmente apenas em modo dev
+# 🔪 Executa localmente apenas em modo dev
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
