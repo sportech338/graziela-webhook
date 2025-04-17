@@ -170,8 +170,30 @@ def webhook():
     else:
         mensagem = mensagem_raw
 
+    # 🔍 Verifica se é a primeira mensagem do cliente
     historico = historicos.get(telefone, "")
+    primeiro_contato = not historico.strip()
+    veio_de_audio = mensagem_raw.lower().startswith("áudio|||")
 
+    if primeiro_contato and veio_de_audio:
+        reply = (
+            "Acabei de ouvir aqui 🌟\n\n"
+            "Pode me contar um pouquinho melhor o que está acontecendo? "
+            "Tô aqui pra te ajudar do jeitinho certo 😊"
+        )
+        novo_historico = f"Cliente: {mensagem}\nGraziela: {reply}".strip()
+        historicos[telefone] = novo_historico
+
+        print("\n========== [GRAZIELA LOG - ÁUDIO INICIAL] ==========")
+        print(f"📆 {now}")
+        print(f"📱 Telefone: {telefone}")
+        print(f"📩 Mensagem (transcrita): {mensagem}")
+        print(f"🤖 Resposta: {reply}")
+        print("=====================================================\n")
+
+        return make_response(jsonify({"payload": {"resposta": reply}}), 200)
+
+    # ✨ Continua o atendimento normalmente com GPT
     messages = [{"role": "system", "content": BASE_PROMPT}]
     if historico:
         messages.append({"role": "user", "content": historico})
