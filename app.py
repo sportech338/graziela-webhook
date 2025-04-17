@@ -5,14 +5,13 @@ import time
 from datetime import datetime
 import requests
 from io import BytesIO
-import json
 
 app = Flask(__name__)
 
 # 🔐 Autenticação com a OpenAI
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-# 🧠 Memória dos históricos por cliente
+# 🧠 Memória dos históricos por cliente (armazenada em dicionário)
 historicos = {}
 
 # 💬 Prompt base completo da Graziela
@@ -140,40 +139,38 @@ def webhook():
     now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
     data = request.get_json()
-    print("🔎 JSON completo recebido:\n" + json.dumps(data, indent=2, ensure_ascii=False))
-
     payload = data.get("payload", {})
-    mensagem = payload.get("var_480")
-    mensagem = mensagem.strip() if mensagem else "[mensagem de áudio recebida]"
+    mensagem_raw = payload.get("var_480", "").strip()
     telefone = data.get("customer", {}).get("phone", "anonimo").strip()
 
+    print("🔎 JSON completo recebido:", data)
     print("📱 Telefone identificado:", telefone)
-    print("💬 Mensagem recebida:", mensagem)
+    print("💬 Mensagem recebida:", mensagem_raw)
+
+    # Detecta se é áudio via separador personalizado
+    if "|||" in mensagem_raw:
+        tipo, audio_url = mensagem_raw.split("|||", 1)
+        if tipo.strip().lower() == "áudio":
+            try:
+                print(f"🎧 URL do áudio detectada: {audio_url}")
+                audio_response = requests.get(audio_url)
+                audio_bytes = BytesIO(audio_response.content)
+
+                transcript = client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=("audio.ogg", audio_bytes, "audio/ogg"),
+                    response_format="text"
+                )
+                mensagem = transcript.strip()
+            except Exception as e:
+                print(f"❌ Erro ao transcrever: {e}")
+                mensagem = "Ah, eu não consigo ouvir áudios, mas posso te ajudar por texto! Me conta o que você precisa 😊"
+        else:
+            mensagem = mensagem_raw
+    else:
+        mensagem = mensagem_raw
 
     historico = historicos.get(telefone, "")
-
-    if "[mensagem de áudio recebida]" in mensagem:
-        try:
-            audio_url = data.get("message", {}).get("audio", {}).get("url")
-            if not audio_url:
-                raise ValueError("URL do áudio não encontrada")
-
-            print(f"🎧 URL do áudio: {audio_url}")
-
-            audio_response = requests.get(audio_url)
-            audio_bytes = BytesIO(audio_response.content)
-
-            transcript = client.audio.transcriptions.create(
-                model="whisper-1",
-                file=("audio.ogg", audio_bytes, "audio/ogg"),
-                response_format="text"
-            )
-            mensagem = transcript.strip()
-            print(f"📝 Transcrição: {mensagem}")
-
-        except Exception as e:
-            print(f"❌ Erro ao transcrever: {e}")
-            mensagem = "Ah, eu não consigo ouvir áudios, mas posso te ajudar por texto! Me conta o que você precisa 😊"
 
     messages = [{"role": "system", "content": BASE_PROMPT}]
     if historico:
