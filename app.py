@@ -152,7 +152,7 @@ def webhook():
         tipo, audio_url = mensagem_raw.split("|||", 1)
         if tipo.strip().lower() == "áudio":
             try:
-                print(f"🎧 URL do áudio detectada: {audio_url}")
+                print(f"🎵 URL do áudio detectada: {audio_url}")
                 audio_response = requests.get(audio_url)
                 audio_bytes = BytesIO(audio_response.content)
 
@@ -170,10 +170,9 @@ def webhook():
     else:
         mensagem = mensagem_raw
 
-    # 🔍 Verifica se é a primeira mensagem do cliente
     historico = historicos.get(telefone, "")
     primeiro_contato = not historico.strip()
-    veio_de_audio = mensagem_raw.lower().startswith("áudio|||")
+    veio_de_audio = mensagem_raw.lower().startswith("audio|||") or mensagem_raw.lower().startswith("áudio|||")
 
     if primeiro_contato and veio_de_audio:
         reply = (
@@ -193,7 +192,7 @@ def webhook():
 
         return make_response(jsonify({"payload": {"resposta": reply}}), 200)
 
-    # ✨ Continua o atendimento normalmente com GPT
+    # Atendimento normal com GPT
     messages = [{"role": "system", "content": BASE_PROMPT}]
     if historico:
         messages.append({"role": "user", "content": historico})
