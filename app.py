@@ -9,7 +9,7 @@ from io import BytesIO
 app = Flask(__name__)
 
 # 🔐 Autenticação com a OpenAI
-client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 # 🧠 Memória dos históricos por cliente
 historicos = {}
@@ -140,81 +140,120 @@ def webhook():
 
     try:
         data = request.get_json() or {}
-        print("🔵 Etapa 1: JSON recebido com sucesso")
+        print("\n✅ JSON recebido com sucesso")
     except Exception as e:
         print(f"❌ Erro ao receber JSON: {e}")
         return make_response(jsonify({"payload": {"resposta": "Erro ao processar os dados."}}), 400)
 
-    payload = data.get("payload", {})
-    mensagem_raw = (payload.get("var_480") or "").strip()
-    telefone = (data.get("customer", {}) or {}).get("phone", "anonimo").strip()
+    mensagem = ""
+    telefone = "anonimo"
 
-    print(f"📱 Telefone: {telefone}")
-    print(f"💬 Mensagem recebida (raw): {mensagem_raw}")
+    GRAPH_API_VERSION = os.environ.get("GRAPH_API_VERSION", "v22.0")
 
-    # 🎧 Verifica se é áudio
-    mensagem = mensagem_raw
-    if "|||" in mensagem_raw:
-        tipo, audio_url = mensagem_raw.split("|||", 1)
-        if tipo.strip().lower() in ["áudio", "audio"]:
-            print("🔵 Etapa 2: Áudio identificado")
-            print(f"🔗 Link do áudio: {audio_url}")
-            try:
-                audio_response = requests.get(audio_url, timeout=10)
-                print(f"🔵 Etapa 3: Requisição do áudio - status: {audio_response.status_code}")
-                if audio_response.status_code == 200:
-                    audio_bytes = BytesIO(audio_response.content)
-                    transcript = client.audio.transcriptions.create(
+    if "entry" in data:
+        try:
+            print("🔍 Entrada via API do WhatsApp identificada")
+            message = data["entry"][0]["changes"][0]["value"]["messages"][0]
+            telefone = message["from"]
+            msg_type = message["type"]
+            print(f"📲 Tipo da mensagem: {msg_type}")
+
+            if msg_type == "text":
+                mensagem = message["text"]["body"]
+
+            elif msg_type == "audio":
+                print("🎧 Mensagem de áudio recebida")
+                audio_id = message["audio"]["id"]
+                token = os.environ.get("WHATSAPP_API_TOKEN")
+                headers = {"Authorization": f"Bearer {token}"}
+                url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{audio_id}"
+                print(f"🔗 Buscando URL do áudio: {url}")
+                res = requests.get(url, headers=headers).json()
+                audio_url = res.get("url")
+                print(f"🎯 URL do áudio gerada: {audio_url}")
+                audio_data = requests.get(audio_url, headers=headers)
+                print(f"🔎 Status do download do áudio: {audio_data.status_code}")
+
+                if audio_data.status_code == 200:
+                    audio_bytes = BytesIO(audio_data.content)
+                    transcript = openai.Audio.transcribe(
                         model="whisper-1",
-                        file=("audio.ogg", audio_bytes, "audio/ogg"),
-                        response_format="text"
+                        file=audio_bytes
                     )
-                    mensagem = transcript.strip()
-                    print(f"✅ Transcrição concluída: {mensagem}")
+                    mensagem = transcript["text"].strip()
+                    print(f"📝 Transcrição: {mensagem}")
                 else:
-                    print("❌ Falha ao baixar o áudio")
                     mensagem = "Não consegui acessar seu áudio. Pode me contar por mensagem? 😊"
-            except Exception as e:
-                print(f"❌ Erro ao transcrever: {e}")
-                mensagem = "Ah, não consegui ouvir seu áudio, mas posso te ajudar por texto! Me conta o que você precisa 😊"
 
-    # 🧠 Recupera histórico
+        except Exception as e:
+            print(f"❌ Erro ao processar mensagem da API Meta: {e}")
+            mensagem = "Desculpa, não consegui processar sua mensagem agora. Pode tentar de novo? 🙏"
+
+    elif "payload" in data:
+        print("⚠️ Entrada via Reportana (var_480) identificada")
+        payload = data.get("payload", {})
+        mensagem_raw = (payload.get("var_480") or "").strip()
+        telefone = (data.get("customer", {}) or {}).get("phone", "anonimo").strip()
+
+        if "|||" in mensagem_raw:
+            tipo, audio_url = mensagem_raw.split("|||", 1)
+            if tipo.strip().lower() in ["audio", "áudio"]:
+                try:
+                    print(f"🔗 Baixando áudio da URL: {audio_url}")
+                    audio_response = requests.get(audio_url, timeout=10)
+                    print(f"🔎 Status do download do áudio: {audio_response.status_code}")
+                    if audio_response.status_code == 200:
+                        audio_bytes = BytesIO(audio_response.content)
+                        transcript = openai.Audio.transcribe(
+                            model="whisper-1",
+                            file=audio_bytes
+                        )
+                        mensagem = transcript["text"].strip()
+                        print(f"📝 Transcrição: {mensagem}")
+                    else:
+                        mensagem = "Não consegui acessar seu áudio. Pode me contar por mensagem? 😊"
+                except Exception as e:
+                    print(f"❌ Erro ao transcrever áudio: {e}")
+                    mensagem = "Ah, não consegui ouvir seu áudio, mas posso te ajudar por texto! Me conta o que você precisa 😊"
+            else:
+                mensagem = audio_url.strip()
+        else:
+            mensagem = mensagem_raw
+
+    else:
+        return make_response(jsonify({"payload": {"resposta": "Evento não reconhecido."}}), 400)
+
+    print("📚 Recuperando histórico do cliente")
     historico = historicos.get(telefone, "")
-    print("🔵 Etapa 4: Histórico carregado")
-
-    # ✨ Prepara mensagens para GPT
     messages = [{"role": "system", "content": BASE_PROMPT}]
     if historico:
         messages.append({"role": "user", "content": historico})
     messages.append({"role": "user", "content": mensagem})
-    print("🔵 Etapa 5: Mensagens preparadas para GPT")
 
-    # 💬 Chamada ao GPT
     try:
-        response = client.chat.completions.create(
+        print("🧠 Chamando o GPT...")
+        response = openai.ChatCompletion.create(
             model="gpt-4o",
             messages=messages,
             temperature=0.5,
             max_tokens=300
         )
-        reply = response.choices[0].message.content.strip()
-        print("✅ Resposta do GPT recebida")
+        reply = response["choices"][0]["message"]["content"].strip()
+        print("🤖 Resposta do GPT recebida com sucesso")
     except Exception as e:
         print(f"❌ Erro ao chamar o GPT: {e}")
         reply = "Tivemos uma instabilidade agora, mas pode me mandar de novo? 🙏"
 
     historicos[telefone] = f"{historico}\nCliente: {mensagem}\nGraziela: {reply}".strip()
-    print("🔵 Etapa 6: Histórico atualizado")
 
     print("\n========== [GRAZIELA LOG] ==========")
     print(f"📆 {now}")
     print(f"📱 Telefone: {telefone}")
     print(f"📩 Mensagem: {mensagem}")
     print(f"🤖 Resposta: {reply}")
-    print(f"📚 Histórico:\n{historicos[telefone]}")
-    print(f"⏱️ Tempo de resposta: {round(time.time() - start, 2)} segundos")
     print("=====================================\n")
 
+    print("📤 Enviando resposta para Reportana")
     return make_response(jsonify({"payload": {"resposta": reply}}), 200)
 
 if __name__ == "__main__":
