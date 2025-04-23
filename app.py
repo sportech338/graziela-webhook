@@ -134,7 +134,7 @@ Ela vende quando ajuda — e ajuda de verdade quando escuta. A conversa é o cam
 def home():
     return "Servidor da Graziela com memória ativa 💬🧠"
 
-# ✅ Verificação de Webhook (para API Meta)
+# ✅ Verificação de Webhook (GET)
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
     mode = request.args.get("hub.mode")
@@ -148,7 +148,7 @@ def verify_webhook():
         print("❌ Verificação do webhook falhou")
         return make_response("Erro de verificação", 403)
 
-# ✅ Recebimento de mensagens
+# ✅ Recebimento de mensagens e eventos (POST)
 @app.route("/webhook", methods=["POST"])
 def webhook():
     start = time.time()
@@ -168,11 +168,21 @@ def webhook():
 
     if "entry" in data:
         try:
-            print("🔍 Entrada via API do WhatsApp identificada")
             entry = data.get("entry", [])[0]
             changes = entry.get("changes", [])[0]
             value = changes.get("value", {})
             messages = value.get("messages", [])
+            statuses = value.get("statuses", [])
+
+            # 📦 Eventos de status (entrega, leitura etc)
+            if statuses:
+                for status in statuses:
+                    status_type = status.get("status")
+                    msg_id = status.get("id")
+                    recipient_id = status.get("recipient_id")
+                    timestamp = status.get("timestamp")
+                    print(f"📦 Evento de status: {status_type} | ID: {msg_id} | Para: {recipient_id} | ⏰ Timestamp: {timestamp}")
+                return make_response("Evento de status processado com sucesso", 200)
 
             if not messages:
                 print("⚠️ Nenhuma mensagem recebida no JSON.")
@@ -197,7 +207,6 @@ def webhook():
                 audio_url = res.get("url")
                 print(f"🎯 URL do áudio gerada: {audio_url}")
                 audio_data = requests.get(audio_url, headers=headers)
-                print(f"🔎 Status do download do áudio: {audio_data.status_code}")
 
                 if audio_data.status_code == 200:
                     audio_bytes = BytesIO(audio_data.content)
@@ -217,6 +226,7 @@ def webhook():
     else:
         return make_response(jsonify({"payload": {"resposta": "Evento não reconhecido."}}), 400)
 
+    # 🧠 Consulta ao GPT
     print("📚 Recuperando histórico do cliente")
     historico = historicos.get(telefone, "")
     messages = [{"role": "system", "content": BASE_PROMPT}]
@@ -240,14 +250,13 @@ def webhook():
 
     historicos[telefone] = f"{historico}\nCliente: {mensagem}\nGraziela: {reply}".strip()
 
-    print("\n========== [GRAZIELA LOG] ==========\n")
+    print("\n========== [GRAZIELA LOG] ==========")
     print(f"📆 {now}")
     print(f"📱 Telefone: {telefone}")
     print(f"📩 Mensagem: {mensagem}")
     print(f"🤖 Resposta: {reply}")
     print("=====================================\n")
 
-    print("📤 Enviando resposta para Reportana")
     return make_response(jsonify({"payload": {"resposta": reply}}), 200)
 
 if __name__ == "__main__":
