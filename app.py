@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 import requests
 from io import BytesIO
+import json
 
 app = Flask(__name__)
 
@@ -141,19 +142,28 @@ def webhook():
     try:
         data = request.get_json() or {}
         print("\n✅ JSON recebido com sucesso")
+        print(json.dumps(data, indent=2))  # 👈 Mostra a estrutura real do JSON
     except Exception as e:
         print(f"❌ Erro ao receber JSON: {e}")
         return make_response(jsonify({"payload": {"resposta": "Erro ao processar os dados."}}), 400)
 
     mensagem = ""
     telefone = "anonimo"
-
     GRAPH_API_VERSION = os.environ.get("GRAPH_API_VERSION", "v22.0")
 
     if "entry" in data:
         try:
             print("🔍 Entrada via API do WhatsApp identificada")
-            message = data["entry"][0]["changes"][0]["value"]["messages"][0]
+            entry = data.get("entry", [])[0]
+            changes = entry.get("changes", [])[0]
+            value = changes.get("value", {})
+            messages = value.get("messages", [])
+
+            if not messages:
+                print("⚠️ Nenhuma mensagem recebida no JSON.")
+                return make_response(jsonify({"payload": {"resposta": "Mensagem vazia recebida."}}), 200)
+
+            message = messages[0]
             telefone = message["from"]
             msg_type = message["type"]
             print(f"📲 Tipo da mensagem: {msg_type}")
@@ -188,37 +198,6 @@ def webhook():
         except Exception as e:
             print(f"❌ Erro ao processar mensagem da API Meta: {e}")
             mensagem = "Desculpa, não consegui processar sua mensagem agora. Pode tentar de novo? 🙏"
-
-    elif "payload" in data:
-        print("⚠️ Entrada via Reportana (var_480) identificada")
-        payload = data.get("payload", {})
-        mensagem_raw = (payload.get("var_480") or "").strip()
-        telefone = (data.get("customer", {}) or {}).get("phone", "anonimo").strip()
-
-        if "|||" in mensagem_raw:
-            tipo, audio_url = mensagem_raw.split("|||", 1)
-            if tipo.strip().lower() in ["audio", "áudio"]:
-                try:
-                    print(f"🔗 Baixando áudio da URL: {audio_url}")
-                    audio_response = requests.get(audio_url, timeout=10)
-                    print(f"🔎 Status do download do áudio: {audio_response.status_code}")
-                    if audio_response.status_code == 200:
-                        audio_bytes = BytesIO(audio_response.content)
-                        transcript = openai.Audio.transcribe(
-                            model="whisper-1",
-                            file=audio_bytes
-                        )
-                        mensagem = transcript["text"].strip()
-                        print(f"📝 Transcrição: {mensagem}")
-                    else:
-                        mensagem = "Não consegui acessar seu áudio. Pode me contar por mensagem? 😊"
-                except Exception as e:
-                    print(f"❌ Erro ao transcrever áudio: {e}")
-                    mensagem = "Ah, não consegui ouvir seu áudio, mas posso te ajudar por texto! Me conta o que você precisa 😊"
-            else:
-                mensagem = audio_url.strip()
-        else:
-            mensagem = mensagem_raw
 
     else:
         return make_response(jsonify({"payload": {"resposta": "Evento não reconhecido."}}), 400)
