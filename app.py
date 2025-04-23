@@ -134,6 +134,21 @@ Ela vende quando ajuda — e ajuda de verdade quando escuta. A conversa é o cam
 def home():
     return "Servidor da Graziela com memória ativa 💬🧠"
 
+# ✅ Verificação de Webhook (para API Meta)
+@app.route("/webhook", methods=["GET"])
+def verify_webhook():
+    mode = request.args.get("hub.mode")
+    token = request.args.get("hub.verify_token")
+    challenge = request.args.get("hub.challenge")
+
+    if mode == "subscribe" and token == os.environ.get("VERIFY_TOKEN", "sportech-token"):
+        print("🔐 Webhook verificado com sucesso!")
+        return make_response(challenge, 200)
+    else:
+        print("❌ Verificação do webhook falhou")
+        return make_response("Erro de verificação", 403)
+
+# ✅ Recebimento de mensagens
 @app.route("/webhook", methods=["POST"])
 def webhook():
     start = time.time()
@@ -142,7 +157,7 @@ def webhook():
     try:
         data = request.get_json() or {}
         print("\n✅ JSON recebido com sucesso")
-        print(json.dumps(data, indent=2))  # 👈 Mostra a estrutura real do JSON
+        print(json.dumps(data, indent=2))
     except Exception as e:
         print(f"❌ Erro ao receber JSON: {e}")
         return make_response(jsonify({"payload": {"resposta": "Erro ao processar os dados."}}), 400)
@@ -164,8 +179,8 @@ def webhook():
                 return make_response(jsonify({"payload": {"resposta": "Mensagem vazia recebida."}}), 200)
 
             message = messages[0]
-            telefone = message["from"]
-            msg_type = message["type"]
+            telefone = message.get("from", "anonimo")
+            msg_type = message.get("type")
             print(f"📲 Tipo da mensagem: {msg_type}")
 
             if msg_type == "text":
@@ -225,7 +240,7 @@ def webhook():
 
     historicos[telefone] = f"{historico}\nCliente: {mensagem}\nGraziela: {reply}".strip()
 
-    print("\n========== [GRAZIELA LOG] ==========")
+    print("\n========== [GRAZIELA LOG] ==========\n")
     print(f"📆 {now}")
     print(f"📱 Telefone: {telefone}")
     print(f"📩 Mensagem: {mensagem}")
