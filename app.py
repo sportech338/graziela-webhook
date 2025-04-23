@@ -1,18 +1,18 @@
 from flask import Flask, request, jsonify, make_response
-import openai
 import os
-import time
-from datetime import datetime
+import openai
+from openai import OpenAI
 import requests
 from io import BytesIO
+from datetime import datetime
 import json
 
 app = Flask(__name__)
 
-# 🔐 Autenticação com a OpenAI
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+# 🔐 Configuração da OpenAI (nova interface)
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-# 🧠 Memória dos históricos por cliente
+# 🧠 Histórico por telefone
 historicos = {}
 
 # 💬 Prompt base completo da Graziela
@@ -134,7 +134,6 @@ Ela vende quando ajuda — e ajuda de verdade quando escuta. A conversa é o cam
 def home():
     return "Servidor da Graziela com memória ativa 💬🧠"
 
-# ✅ Verificação de Webhook (GET)
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
     mode = request.args.get("hub.mode")
@@ -148,86 +147,69 @@ def verify_webhook():
         print("❌ Verificação do webhook falhou")
         return make_response("Erro de verificação", 403)
 
-# ✅ Recebimento de mensagens e eventos (POST)
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    start = time.time()
     now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-
     try:
         data = request.get_json() or {}
         print("\n✅ JSON recebido com sucesso")
         print(json.dumps(data, indent=2))
     except Exception as e:
         print(f"❌ Erro ao receber JSON: {e}")
-        return make_response(jsonify({"payload": {"resposta": "Erro ao processar os dados."}}), 400)
+        return make_response(jsonify({"payload": {"resposta": "Erro ao processar os dados"}}), 400)
 
     mensagem = ""
     telefone = "anonimo"
-    GRAPH_API_VERSION = os.environ.get("GRAPH_API_VERSION", "v22.0")
 
     if "entry" in data:
         try:
-            entry = data.get("entry", [])[0]
-            changes = entry.get("changes", [])[0]
-            value = changes.get("value", {})
+            value = data["entry"][0]["changes"][0]["value"]
             messages = value.get("messages", [])
             statuses = value.get("statuses", [])
 
-            # 📦 Eventos de status (entrega, leitura etc)
             if statuses:
                 for status in statuses:
-                    status_type = status.get("status")
-                    msg_id = status.get("id")
-                    recipient_id = status.get("recipient_id")
-                    timestamp = status.get("timestamp")
-                    print(f"📦 Evento de status: {status_type} | ID: {msg_id} | Para: {recipient_id} | ⏰ Timestamp: {timestamp}")
+                    print(f"📦 Evento de status: {status.get('status')} | Para: {status.get('recipient_id')}")
                 return make_response("Evento de status processado com sucesso", 200)
 
             if not messages:
-                print("⚠️ Nenhuma mensagem recebida no JSON.")
-                return make_response(jsonify({"payload": {"resposta": "Mensagem vazia recebida."}}), 200)
+                print("⚠️ Nenhuma mensagem recebida")
+                return make_response(jsonify({"payload": {"resposta": "Mensagem vazia"}}), 200)
 
             message = messages[0]
             telefone = message.get("from", "anonimo")
-            msg_type = message.get("type")
-            print(f"📲 Tipo da mensagem: {msg_type}")
+            tipo = message.get("type")
 
-            if msg_type == "text":
+            if tipo == "text":
                 mensagem = message["text"]["body"]
 
-            elif msg_type == "audio":
-                print("🎧 Mensagem de áudio recebida")
+            elif tipo == "audio":
+                print("🎧 Áudio recebido")
                 audio_id = message["audio"]["id"]
-                token = os.environ.get("WHATSAPP_API_TOKEN")
-                headers = {"Authorization": f"Bearer {token}"}
-                url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{audio_id}"
-                print(f"🔗 Buscando URL do áudio: {url}")
+                headers = {"Authorization": f"Bearer {os.environ.get('WHATSAPP_API_TOKEN')}"}
+                url = f"https://graph.facebook.com/v18.0/{audio_id}"
                 res = requests.get(url, headers=headers).json()
                 audio_url = res.get("url")
-                print(f"🎯 URL do áudio gerada: {audio_url}")
                 audio_data = requests.get(audio_url, headers=headers)
 
                 if audio_data.status_code == 200:
-                    audio_bytes = BytesIO(audio_data.content)
-                    transcript = openai.Audio.transcribe(
+                    audio_file = BytesIO(audio_data.content)
+                    transcript = client.audio.transcriptions.create(
                         model="whisper-1",
-                        file=audio_bytes
+                        file=audio_file
                     )
-                    mensagem = transcript["text"].strip()
+                    mensagem = transcript.text.strip()
                     print(f"📝 Transcrição: {mensagem}")
                 else:
-                    mensagem = "Não consegui acessar seu áudio. Pode me contar por mensagem? 😊"
-
+                    mensagem = "Não consegui acessar seu áudio. Pode me contar por texto? 😊"
         except Exception as e:
-            print(f"❌ Erro ao processar mensagem da API Meta: {e}")
-            mensagem = "Desculpa, não consegui processar sua mensagem agora. Pode tentar de novo? 🙏"
-
+            print(f"❌ Erro ao processar mensagem: {e}")
+            mensagem = "Desculpa, não consegui entender. Pode tentar de novo? 🙏"
     else:
-        return make_response(jsonify({"payload": {"resposta": "Evento não reconhecido."}}), 400)
+        return make_response(jsonify({"payload": {"resposta": "Evento não reconhecido"}}), 400)
 
-    # 🧠 Consulta ao GPT
-    print("📚 Recuperando histórico do cliente")
+    # 🧠 Processamento GPT
+    print("📚 Histórico do cliente")
     historico = historicos.get(telefone, "")
     messages = [{"role": "system", "content": BASE_PROMPT}]
     if historico:
@@ -235,17 +217,17 @@ def webhook():
     messages.append({"role": "user", "content": mensagem})
 
     try:
-        print("🧠 Chamando o GPT...")
-        response = openai.ChatCompletion.create(
+        print("🧠 Chamando GPT-4o...")
+        resposta = client.chat.completions.create(
             model="gpt-4o",
             messages=messages,
             temperature=0.5,
             max_tokens=300
         )
-        reply = response["choices"][0]["message"]["content"].strip()
-        print("🤖 Resposta do GPT recebida com sucesso")
+        reply = resposta.choices[0].message.content.strip()
+        print("🤖 GPT respondeu com sucesso")
     except Exception as e:
-        print(f"❌ Erro ao chamar o GPT: {e}")
+        print(f"❌ Erro com o GPT: {e}")
         reply = "Tivemos uma instabilidade agora, mas pode me mandar de novo? 🙏"
 
     historicos[telefone] = f"{historico}\nCliente: {mensagem}\nGraziela: {reply}".strip()
