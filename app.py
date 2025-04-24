@@ -216,7 +216,7 @@ def webhook():
     return make_response(jsonify({
         "payload": {
             "var_480": mensagem,
-            "resposta": reply
+            "resposta": resposta
         }
     }), 200)
 
