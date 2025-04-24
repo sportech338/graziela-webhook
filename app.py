@@ -150,7 +150,7 @@ def webhook():
         return make_response(jsonify({"payload": {"resposta": "Erro ao processar os dados"}}), 400)
 
     payload = data.get("payload", {})
-    telefone = payload.get("telefone", "desconhecido")
+    telefone = data.get("customer", {}).get("phone", "desconhecido")
     mensagem = payload.get("var_480", "").strip()
 
     if not mensagem and "entry" in data:
