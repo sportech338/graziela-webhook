@@ -156,8 +156,8 @@ def webhook():
     telefone = data.get("customer", {}).get("phone", "desconhecido")
     mensagem = (payload.get("var_480") or "").strip()
 
+    # Tenta transcrever se var_480 estiver vazio e entrada contiver um áudio
     if not mensagem and "entry" in data:
-        print("🎧 Verificando se é áudio.")
         try:
             value = data["entry"][0]["changes"][0]["value"]
             messages = value.get("messages", [])
@@ -165,38 +165,51 @@ def webhook():
                 msg = messages[0]
                 if msg.get("type") == "audio":
                     print("🎧 Áudio detectado. Processando...")
-                    audio_id = msg["audio"]["id"]
-                    token = os.environ.get("WHATSAPP_API_TOKEN")
-                    headers = {"Authorization": f"Bearer {token}"}
-                    audio_info = requests.get(f"https://graph.facebook.com/v18.0/{audio_id}", headers=headers).json()
-                    print(f"🎧 Informações do áudio: {audio_info}")
-                    
-                    audio_url = audio_info.get("url")
-                    if audio_url:
-                        audio_file = requests.get(audio_url, headers=headers)
-                        if audio_file.status_code == 200:
-                            file_bytes = BytesIO(audio_file.content)
-                            transcript = client.audio.transcriptions.create(
-                                model="whisper-1",
-                                file=file_bytes
-                            )
-                            mensagem = transcript.text.strip()
-                            print(f"📝 Transcrição feita: {mensagem}")
-                        else:
-                            mensagem = "Não consegui acessar seu áudio. Pode me contar por mensagem? 😊"
-                            print("❌ Não consegui acessar o áudio.")
+                    audio_id = msg.get("audio", {}).get("id")
+                    if not audio_id:
+                        print("❌ Nenhum media_id encontrado no campo audio.")
+                        mensagem = "Não consegui identificar o áudio. Pode me contar por mensagem? 😊"
                     else:
-                        mensagem = "Não consegui localizar seu áudio. Pode me contar por mensagem? 😊"
-                        print("❌ Não consegui encontrar o URL do áudio.")
+                        token = os.environ.get("WHATSAPP_API_TOKEN")
+                        headers = {"Authorization": f"Bearer {token}"}
+
+                        audio_info = requests.get(f"https://graph.facebook.com/v18.0/{audio_id}", headers=headers).json()
+                        print(f"🔗 Resposta da Graph API: {json.dumps(audio_info, indent=2)}")
+
+                        if "error" in audio_info:
+                            print(f"❌ Erro da API do WhatsApp: {audio_info['error'].get('message')}")
+                            mensagem = "Tivemos um problema técnico ao acessar seu áudio. Pode tentar de novo? 🙏"
+                        else:
+                            audio_url = audio_info.get("url")
+                            if audio_url:
+                                audio_file = requests.get(audio_url, headers=headers)
+                                if audio_file.status_code == 200:
+                                    try:
+                                        file_bytes = BytesIO(audio_file.content)
+                                        transcript = client.audio.transcriptions.create(
+                                            model="whisper-1",
+                                            file=file_bytes
+                                        )
+                                        mensagem = transcript.text.strip()
+                                        print(f"📝 Transcrição feita: {mensagem}")
+                                    except Exception as e:
+                                        print(f"❌ Erro ao transcrever áudio com Whisper: {e}")
+                                        mensagem = "Não consegui transcrever seu áudio. Pode me contar por texto? 🙏"
+                                else:
+                                    print(f"❌ Erro ao baixar o áudio. Status: {audio_file.status_code}")
+                                    mensagem = "Não consegui acessar seu áudio. Pode me contar por mensagem? 😊"
+                            else:
+                                print("❌ URL do áudio não encontrada na resposta da Graph API.")
+                                mensagem = "Não consegui localizar seu áudio. Pode me contar por mensagem? 😊"
         except Exception as e:
-            print(f"❌ Erro na transcrição de áudio: {e}")
+            print(f"❌ Erro inesperado ao processar áudio: {e}")
             mensagem = "Não consegui interpretar seu áudio. Pode me contar por texto? 🙏"
 
     if not mensagem:
-        print("❌ Nenhuma mensagem válida encontrada.")
+        print("❌ Nenhuma mensagem válida após tentativa de transcrição.")
         return make_response(jsonify({"payload": {"resposta": "Mensagem não compreendida"}}), 200)
 
-    # Logando o histórico
+    # Gera resposta com o GPT
     historico = historicos.get(telefone, "")
     messages = [{"role": "system", "content": BASE_PROMPT}]
     if historico:
@@ -204,7 +217,6 @@ def webhook():
     messages.append({"role": "user", "content": mensagem})
 
     try:
-        # Chamando o modelo da OpenAI
         completion = client.chat.completions.create(
             model="gpt-4o",
             messages=messages,
@@ -212,7 +224,7 @@ def webhook():
             max_tokens=300
         )
         resposta = completion.choices[0].message.content.strip()
-        print(f"🤖 Resposta do GPT: {resposta}")
+        print(f"🤖 GPT: {resposta}")
     except Exception as e:
         print(f"❌ Erro com GPT: {e}")
         resposta = "Tivemos uma instabilidade agora, mas pode me mandar de novo? 🙏"
