@@ -151,7 +151,7 @@ def webhook():
 
     payload = data.get("payload", {})
     telefone = data.get("customer", {}).get("phone", "desconhecido")
-    mensagem = payload.get("var_480", "").strip()
+    mensagem = (payload.get("var_480") or "").strip()
 
     if not mensagem and "entry" in data:
         try:
