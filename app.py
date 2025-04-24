@@ -8,7 +8,6 @@ import json
 
 app = Flask(__name__)
 
-# 🔐 Chave da OpenAI
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 historicos = {}
 
@@ -137,7 +136,9 @@ def verify_webhook():
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
     if mode == "subscribe" and token == os.environ.get("VERIFY_TOKEN", "sportech-token"):
+        print("Webhook verificado com sucesso.")
         return make_response(challenge, 200)
+    print("Erro ao verificar o webhook.")
     return make_response("Erro de verificação", 403)
 
 @app.route("/webhook", methods=["POST"])
@@ -156,16 +157,20 @@ def webhook():
     mensagem = (payload.get("var_480") or "").strip()
 
     if not mensagem and "entry" in data:
+        print("🎧 Verificando se é áudio.")
         try:
             value = data["entry"][0]["changes"][0]["value"]
             messages = value.get("messages", [])
             if messages:
                 msg = messages[0]
                 if msg.get("type") == "audio":
+                    print("🎧 Áudio detectado. Processando...")
                     audio_id = msg["audio"]["id"]
                     token = os.environ.get("WHATSAPP_API_TOKEN")
                     headers = {"Authorization": f"Bearer {token}"}
                     audio_info = requests.get(f"https://graph.facebook.com/v18.0/{audio_id}", headers=headers).json()
+                    print(f"🎧 Informações do áudio: {audio_info}")
+                    
                     audio_url = audio_info.get("url")
                     if audio_url:
                         audio_file = requests.get(audio_url, headers=headers)
@@ -179,15 +184,19 @@ def webhook():
                             print(f"📝 Transcrição feita: {mensagem}")
                         else:
                             mensagem = "Não consegui acessar seu áudio. Pode me contar por mensagem? 😊"
+                            print("❌ Não consegui acessar o áudio.")
                     else:
                         mensagem = "Não consegui localizar seu áudio. Pode me contar por mensagem? 😊"
+                        print("❌ Não consegui encontrar o URL do áudio.")
         except Exception as e:
             print(f"❌ Erro na transcrição de áudio: {e}")
             mensagem = "Não consegui interpretar seu áudio. Pode me contar por texto? 🙏"
 
     if not mensagem:
+        print("❌ Nenhuma mensagem válida encontrada.")
         return make_response(jsonify({"payload": {"resposta": "Mensagem não compreendida"}}), 200)
 
+    # Logando o histórico
     historico = historicos.get(telefone, "")
     messages = [{"role": "system", "content": BASE_PROMPT}]
     if historico:
@@ -195,6 +204,7 @@ def webhook():
     messages.append({"role": "user", "content": mensagem})
 
     try:
+        # Chamando o modelo da OpenAI
         completion = client.chat.completions.create(
             model="gpt-4o",
             messages=messages,
@@ -202,6 +212,7 @@ def webhook():
             max_tokens=300
         )
         resposta = completion.choices[0].message.content.strip()
+        print(f"🤖 Resposta do GPT: {resposta}")
     except Exception as e:
         print(f"❌ Erro com GPT: {e}")
         resposta = "Tivemos uma instabilidade agora, mas pode me mandar de novo? 🙏"
