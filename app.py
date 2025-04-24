@@ -8,6 +8,7 @@ import json
 
 app = Flask(__name__)
 
+# 🔐 Chave da OpenAI
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 historicos = {}
 
@@ -125,6 +126,7 @@ https://lojasportech.com/collections/ofertas_da_semana/products/flexlive-novo
 Esse é o espírito da Graziela: presença, sensibilidade e intenção.  
 Ela vende quando ajuda — e ajuda de verdade quando escuta. A conversa é o caminho. A venda, a consequência.
 """
+
 @app.route("/", methods=["GET"])
 def home():
     return "Servidor da Graziela com memória ativa 💬🧠"
