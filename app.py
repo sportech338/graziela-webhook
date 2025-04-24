@@ -148,6 +148,7 @@ def webhook():
         data = request.get_json(force=True)
         print(f"\n✅ [{now}] JSON recebido:")
         print(json.dumps(data, indent=2))
+        print(f"🔑 Chaves do JSON recebido: {list(data.keys())}")
     except Exception as e:
         print(f"❌ Erro ao ler JSON: {e}")
         return make_response(jsonify({"payload": {"resposta": "Erro ao processar os dados"}}), 400)
@@ -156,60 +157,17 @@ def webhook():
     telefone = data.get("customer", {}).get("phone", "desconhecido")
     mensagem = (payload.get("var_480") or "").strip()
 
-    # Tenta transcrever se var_480 estiver vazio e entrada contiver um áudio
-    if not mensagem and "entry" in data:
-        try:
-            value = data["entry"][0]["changes"][0]["value"]
-            messages = value.get("messages", [])
-            if messages:
-                msg = messages[0]
-                if msg.get("type") == "audio":
-                    print("🎧 Áudio detectado. Processando...")
-                    audio_id = msg.get("audio", {}).get("id")
-                    if not audio_id:
-                        print("❌ Nenhum media_id encontrado no campo audio.")
-                        mensagem = "Não consegui identificar o áudio. Pode me contar por mensagem? 😊"
-                    else:
-                        token = os.environ.get("WHATSAPP_API_TOKEN")
-                        headers = {"Authorization": f"Bearer {token}"}
+    if not mensagem:
+        print("⚠️ var_480 está vazio. Nenhuma mensagem direta recebida.")
 
-                        audio_info = requests.get(f"https://graph.facebook.com/v18.0/{audio_id}", headers=headers).json()
-                        print(f"🔗 Resposta da Graph API: {json.dumps(audio_info, indent=2)}")
-
-                        if "error" in audio_info:
-                            print(f"❌ Erro da API do WhatsApp: {audio_info['error'].get('message')}")
-                            mensagem = "Tivemos um problema técnico ao acessar seu áudio. Pode tentar de novo? 🙏"
-                        else:
-                            audio_url = audio_info.get("url")
-                            if audio_url:
-                                audio_file = requests.get(audio_url, headers=headers)
-                                if audio_file.status_code == 200:
-                                    try:
-                                        file_bytes = BytesIO(audio_file.content)
-                                        transcript = client.audio.transcriptions.create(
-                                            model="whisper-1",
-                                            file=file_bytes
-                                        )
-                                        mensagem = transcript.text.strip()
-                                        print(f"📝 Transcrição feita: {mensagem}")
-                                    except Exception as e:
-                                        print(f"❌ Erro ao transcrever áudio com Whisper: {e}")
-                                        mensagem = "Não consegui transcrever seu áudio. Pode me contar por texto? 🙏"
-                                else:
-                                    print(f"❌ Erro ao baixar o áudio. Status: {audio_file.status_code}")
-                                    mensagem = "Não consegui acessar seu áudio. Pode me contar por mensagem? 😊"
-                            else:
-                                print("❌ URL do áudio não encontrada na resposta da Graph API.")
-                                mensagem = "Não consegui localizar seu áudio. Pode me contar por mensagem? 😊"
-        except Exception as e:
-            print(f"❌ Erro inesperado ao processar áudio: {e}")
-            mensagem = "Não consegui interpretar seu áudio. Pode me contar por texto? 🙏"
+    # Aqui poderia vir a lógica futura para tentar recuperar áudio se não houver entry
+    # (exemplo: buscar última mensagem via Graph API se Reportana não encaminhar o campo entry)
 
     if not mensagem:
         print("❌ Nenhuma mensagem válida após tentativa de transcrição.")
         return make_response(jsonify({"payload": {"resposta": "Mensagem não compreendida"}}), 200)
 
-    # Gera resposta com o GPT
+    # Geração da resposta com GPT
     historico = historicos.get(telefone, "")
     messages = [{"role": "system", "content": BASE_PROMPT}]
     if historico:
