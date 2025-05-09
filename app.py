@@ -129,7 +129,7 @@ Ela vende quando ajuda — e ajuda de verdade quando escuta. A conversa é o cam
 """
 
 # === CONFIGURAÇÃO GOOGLE SHEETS ===
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 SPREADSHEET_NAME = "Histórico de conversas | Graziela"
 
 # Cria arquivo credentials.json a partir da variável de ambiente base64
@@ -147,7 +147,6 @@ def criar_arquivo_credenciais():
 
 if not os.path.exists("credentials.json"):
     criar_arquivo_credenciais()
-
 
 CREDENTIALS_PATH = "credentials.json"
 
