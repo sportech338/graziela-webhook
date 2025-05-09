@@ -4,7 +4,7 @@ import openai
 import requests
 from datetime import datetime
 import json
-
+import base64
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -130,8 +130,25 @@ Ela vende quando ajuda — e ajuda de verdade quando escuta. A conversa é o cam
 
 # === CONFIGURAÇÃO GOOGLE SHEETS ===
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-CREDENTIALS_PATH = "/etc/secrets/credentials.json"
 SPREADSHEET_NAME = "Histórico de conversas | Graziela"
+
+# Cria arquivo credentials.json a partir da variável de ambiente base64
+def criar_arquivo_credenciais():
+    try:
+        encoded = os.environ.get("GOOGLE_CREDENTIALS_BASE64")
+        if not encoded:
+            raise ValueError("Variável GOOGLE_CREDENTIALS_BASE64 não encontrada.")
+        decoded = base64.b64decode(encoded).decode("utf-8")
+        with open("credentials.json", "w") as f:
+            f.write(decoded)
+        print("🔐 Arquivo credentials.json criado com sucesso.")
+    except Exception as e:
+        print(f"❌ Erro ao criar credentials.json: {e}")
+
+criar_arquivo_credenciais()
+
+
+CREDENTIALS_PATH = "credentials.json"
 
 def registrar_no_sheets(telefone, mensagem, resposta):
     try:
