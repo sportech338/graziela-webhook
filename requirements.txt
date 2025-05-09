@@ -4,3 +4,4 @@ gunicorn
 requests
 gspread
 google-auth
+google-auth-oauthlib
