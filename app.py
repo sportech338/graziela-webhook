@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify, make_response
 import os
 import openai
 import requests
-from io import BytesIO
 from datetime import datetime
 import json
 
@@ -125,7 +124,6 @@ https://lojasportech.com/collections/ofertas_da_semana/products/flexlive-novo
 Esse é o espírito da Graziela: presença, sensibilidade e intenção.  
 Ela vende quando ajuda — e ajuda de verdade quando escuta. A conversa é o caminho. A venda, a consequência.
 """
-
 @app.route("/", methods=["GET"])
 def home():
     return "Servidor da Graziela com memória ativa 💬🧠"
@@ -145,63 +143,60 @@ def verify_webhook():
 def webhook():
     now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     try:
-        data = request.get_json(force=True)
+        data = request.get_json()
         print(f"\n✅ [{now}] JSON recebido:")
         print(json.dumps(data, indent=2))
-        print(f"🔑 Chaves do JSON recebido: {list(data.keys())}")
-    except Exception as e:
-        print(f"❌ Erro ao ler JSON: {e}")
-        return make_response(jsonify({"payload": {"resposta": "Erro ao processar os dados"}}), 400)
+        
+        entry = data.get("entry", [])[0]
+        changes = entry.get("changes", [])[0]
+        value = changes.get("value", {})
+        messages = value.get("messages", [])
 
-    payload = data.get("payload", {})
-    telefone = data.get("customer", {}).get("phone", "desconhecido")
-    mensagem = (payload.get("var_480") or "").strip()
+        if not messages:
+            print("⚠️ Nenhuma mensagem recebida.")
+            return "ok", 200
 
-    if not mensagem:
-        print("⚠️ var_480 está vazio. Nenhuma mensagem direta recebida.")
+        msg = messages[0]
+        telefone = msg["from"]
+        mensagem = msg["text"]["body"]
 
-    # Aqui poderia vir a lógica futura para tentar recuperar áudio se não houver entry
-    # (exemplo: buscar última mensagem via Graph API se Reportana não encaminhar o campo entry)
+        # Geração da resposta com GPT
+        historico = historicos.get(telefone, "")
+        messages_to_gpt = [{"role": "system", "content": BASE_PROMPT}]
+        if historico:
+            messages_to_gpt.append({"role": "user", "content": historico})
+        messages_to_gpt.append({"role": "user", "content": mensagem})
 
-    if not mensagem:
-        print("❌ Nenhuma mensagem válida após tentativa de transcrição.")
-        return make_response(jsonify({"payload": {"resposta": "Mensagem não compreendida"}}), 200)
-
-    # Geração da resposta com GPT
-    historico = historicos.get(telefone, "")
-    messages = [{"role": "system", "content": BASE_PROMPT}]
-    if historico:
-        messages.append({"role": "user", "content": historico})
-    messages.append({"role": "user", "content": mensagem})
-
-    try:
         completion = client.chat.completions.create(
             model="gpt-4o",
-            messages=messages,
+            messages=messages_to_gpt,
             temperature=0.5,
             max_tokens=300
         )
         resposta = completion.choices[0].message.content.strip()
         print(f"🤖 GPT: {resposta}")
-    except Exception as e:
-        print(f"❌ Erro com GPT: {e}")
-        resposta = "Tivemos uma instabilidade agora, mas pode me mandar de novo? 🙏"
 
-    historicos[telefone] = f"{historico}\nCliente: {mensagem}\nGraziela: {resposta}".strip()
+        historicos[telefone] = f"{historico}\nCliente: {mensagem}\nGraziela: {resposta}".strip()
 
-    print("\n========== GRAZIELA LOG ==========")
-    print(f"📆 {now}")
-    print(f"📱 Cliente: {telefone}")
-    print(f"📩 Mensagem: {mensagem}")
-    print(f"🤖 Resposta: {resposta}")
-    print("==================================\n")
-
-    return make_response(jsonify({
-        "payload": {
-            "var_480": mensagem,
-            "resposta": resposta
+        # Envio da resposta pelo WhatsApp Cloud API
+        whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
+        headers = {
+            "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN']}",
+            "Content-Type": "application/json"
         }
-    }), 200)
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": telefone,
+            "text": {"body": resposta}
+        }
+        response = requests.post(whatsapp_url, headers=headers, json=payload)
+        print(f"📤 Enviado para WhatsApp: {response.status_code} | {response.text}")
+
+        return "ok", 200
+
+    except Exception as e:
+        print(f"❌ Erro no webhook: {e}")
+        return make_response("Erro interno", 500)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 3000)))
