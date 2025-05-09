@@ -7,11 +7,11 @@ import json
 import base64
 import gspread
 from google.oauth2.service_account import Credentials
+from google.cloud import firestore
 
 app = Flask(__name__)
 
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-historicos = {}
 
 # === BASE PROMPT DA GRAZIELA ===
 BASE_PROMPT = """
@@ -93,10 +93,10 @@ Você responde com acolhimento:
 📚 REFERÊNCIA INTERNA — NÃO RESPONDA ISSO DIRETAMENTE, APENAS CONSULTE SE FOR RELEVANTE NA CONVERSA:
 
 📦 Pacotes do Flexlive:
-- 20 unidades – R$99,87 → Ideal pra testar
-- 45 unidades – R$139,90 → Econômico
-- 60 unidades – R$149,90 → Mais vendido
-- 120 unidades – R$199,90 → Melhor custo-benefício
+- 20 peças – R$99,87 → Ideal pra testar
+- 30 peças – R$129,90 → Mais vendido
+- 60 peças – R$169,90 → Mais Alívio e Economia
+- 120 peças – R$199,90 → Melhor custo-benefício
 
 💰 Formas de pagamento:
 - Pix (à vista)
@@ -112,7 +112,7 @@ CNPJ: 52940645000108
 
 ⭐ Reputação:
 - Mais de 63.000 clientes atendidos
-- Nota 8.9 no Reclame Aqui
+- Nota 9.2 no Reclame Aqui
 - Recomendado por ortopedistas, como o Dr. Marcos Souza
 
 🌐 Página do produto:  
@@ -120,7 +120,7 @@ https://lojasportech.com/collections/ofertas_da_semana/products/flexlive-novo
 
 🛒 Links diretos para fechar a compra:
 - 20 peças → https://seguro.lojasportech.com/r/1N5JPRTY2O  
-- 45 peças → https://seguro.lojasportech.com/r/927Q2G8120  
+- 30 peças → https://seguro.lojasportech.com/r/LSLZ9IL8GC 
 - 60 peças → https://seguro.lojasportech.com/r/GPX892TWJC  
 - 120 peças → https://seguro.lojasportech.com/r/OCTSSSZKVU
 
@@ -128,7 +128,7 @@ Esse é o espírito da Graziela: presença, sensibilidade e intenção.
 Ela vende quando ajuda — e ajuda de verdade quando escuta. A conversa é o caminho. A venda, a consequência.
 """
 
-# === CONFIGURAÇÃO GOOGLE SHEETS ===
+# === CONFIGURAÇÃO GOOGLE SHEETS E FIRESTORE ===
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 SPREADSHEET_NAME = "Histórico de conversas | Graziela"
 
@@ -149,6 +149,7 @@ if not os.path.exists("credentials.json"):
     criar_arquivo_credenciais()
 
 CREDENTIALS_PATH = "credentials.json"
+firestore_client = firestore.Client.from_service_account_json(CREDENTIALS_PATH)
 
 def registrar_no_sheets(telefone, mensagem, resposta):
     try:
@@ -160,6 +161,50 @@ def registrar_no_sheets(telefone, mensagem, resposta):
         print("📄 Conversa registrada no Google Sheets.")
     except Exception as e:
         print(f"❌ Erro ao registrar no Google Sheets: {e}")
+
+def salvar_no_firestore(telefone, mensagem, resposta):
+    try:
+        doc_ref = firestore_client.collection("conversas").document(telefone)
+        doc = doc_ref.get()
+        historico = doc.to_dict()["historico"] if doc.exists and "historico" in doc.to_dict() else ""
+        novo_historico = f"{historico}\nCliente: {mensagem}\nGraziela: {resposta}".strip()
+        doc_ref.set({
+            "telefone": telefone,
+            "ultima_interacao": datetime.now(),
+            "mensagem": mensagem,
+            "resposta": resposta,
+            "historico": novo_historico
+        })
+        print("📆 Conversa registrada no Firestore.")
+    except Exception as e:
+        print(f"❌ Erro ao salvar no Firestore: {e}")
+
+def obter_historico(telefone):
+    try:
+        doc = firestore_client.collection("conversas").document(telefone).get()
+        if doc.exists:
+            return doc.to_dict().get("historico", "")
+    except Exception as e:
+        print(f"❌ Erro ao buscar histórico no Firestore: {e}")
+    return ""
+
+def resumir_historico(historico):
+    try:
+        res = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Resuma com clareza e sem perder contexto e detalhes importantes sobre o que motiva o cliente, de onde veio, quando abandonou no último contato, se a conversa havia sido finalizada ou não, se ele já havia comprado. Foque em manter a essência do cliente para que Graziela entenda a situação e dê continuidade com empatia e coerência."},
+                {"role": "user", "content": historico}
+            ],
+            max_tokens=300,
+            temperature=0.3
+        )
+        resumo = res.choices[0].message.content.strip()
+        print("🧠 Histórico resumido.")
+        return resumo
+    except Exception as e:
+        print(f"❌ Erro ao resumir histórico: {e}")
+        return historico
 
 def baixar_audio_do_meta(media_id):
     try:
@@ -228,8 +273,11 @@ def webhook():
 
         if mensagem:
             prompt = [{"role": "system", "content": BASE_PROMPT}]
-            if historicos.get(telefone):
-                prompt.append({"role": "user", "content": historicos[telefone]})
+            historico = obter_historico(telefone)
+            if len(historico) > 3000:
+                historico = resumir_historico(historico)
+            if historico:
+                prompt.append({"role": "user", "content": historico})
             prompt.append({"role": "user", "content": mensagem})
 
             completion = client.chat.completions.create(
@@ -239,8 +287,8 @@ def webhook():
                 max_tokens=300
             )
             resposta = completion.choices[0].message.content.strip()
-            historicos[telefone] = f"{historicos.get(telefone, '')}\nCliente: {mensagem}\nGraziela: {resposta}".strip()
             print(f"🤖 GPT: {resposta}")
+            salvar_no_firestore(telefone, mensagem, resposta)
 
         whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
         headers = {
@@ -256,7 +304,6 @@ def webhook():
         print(f"📤 Enviado para WhatsApp: {response.status_code} | {response.text}")
 
         registrar_no_sheets(telefone, mensagem, resposta)
-
         return "ok", 200
 
     except Exception as e:
