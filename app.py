@@ -5,11 +5,15 @@ import requests
 from datetime import datetime
 import json
 
+import gspread
+from google.oauth2.service_account import Credentials
+
 app = Flask(__name__)
 
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 historicos = {}
 
+# === BASE PROMPT DA GRAZIELA ===
 BASE_PROMPT = """
 Você é Graziela, vendedora da Sportech. Seu papel não é vender um produto. Seu papel é ajudar pessoas a retomarem sua qualidade de vida com consciência, empatia e clareza.
 
@@ -124,36 +128,43 @@ Esse é o espírito da Graziela: presença, sensibilidade e intenção.
 Ela vende quando ajuda — e ajuda de verdade quando escuta. A conversa é o caminho. A venda, a consequência.
 """
 
-# Função: baixar áudio via Graph API
+# === CONFIGURAÇÃO GOOGLE SHEETS ===
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+CREDENTIALS_PATH = "/etc/secrets/credentials.json"
+SPREADSHEET_NAME = "Histórico de conversas | Graziela"
+
+def registrar_no_sheets(telefone, mensagem, resposta):
+    try:
+        creds = Credentials.from_service_account_file(CREDENTIALS_PATH, scopes=SCOPES)
+        gc = gspread.authorize(creds)
+        sheet = gc.open(SPREADSHEET_NAME).sheet1
+        agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        sheet.append_row([telefone, mensagem, resposta, agora])
+        print("📄 Conversa registrada no Google Sheets.")
+    except Exception as e:
+        print(f"❌ Erro ao registrar no Google Sheets: {e}")
+
 def baixar_audio_do_meta(media_id):
     try:
         token = os.environ["WHATSAPP_TOKEN"]
         url_info = f"https://graph.facebook.com/v18.0/{media_id}"
         headers = {"Authorization": f"Bearer {token}"}
-        res_info = requests.get(url_info, headers=headers)
-        res_info.raise_for_status()
-        file_url = res_info.json()["url"]
-
+        file_url = requests.get(url_info, headers=headers).json()["url"]
         res_audio = requests.get(file_url, headers=headers)
-        res_audio.raise_for_status()
         return res_audio.content
     except Exception as e:
         print(f"❌ Erro ao baixar áudio: {e}")
         return None
 
-# Função: transcrever com Whisper
 def transcrever_audio(blob):
     try:
-        response = requests.post(
+        res = requests.post(
             "https://api.openai.com/v1/audio/transcriptions",
-            headers={
-                "Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"
-            },
+            headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"},
             files={"file": ("audio.ogg", blob, "audio/ogg")},
             data={"model": "whisper-1", "language": "pt"}
         )
-        response.raise_for_status()
-        return response.json()["text"]
+        return res.json()["text"]
     except Exception as e:
         print(f"❌ Erro na transcrição: {e}")
         return None
@@ -164,11 +175,8 @@ def home():
 
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
-    mode = request.args.get("hub.mode")
-    token = request.args.get("hub.verify_token")
-    challenge = request.args.get("hub.challenge")
-    if mode == "subscribe" and token == os.environ.get("VERIFY_TOKEN", "sportech-token"):
-        return make_response(challenge, 200)
+    if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.verify_token") == os.environ.get("VERIFY_TOKEN"):
+        return make_response(request.args.get("hub.challenge"), 200)
     return make_response("Erro de verificação", 403)
 
 @app.route("/webhook", methods=["POST"])
@@ -179,52 +187,42 @@ def webhook():
         print(f"\n✅ [{now}] JSON recebido:")
         print(json.dumps(data, indent=2))
 
-        entry = data.get("entry", [])[0]
-        changes = entry.get("changes", [])[0]
-        value = changes.get("value", {})
-        messages = value.get("messages", [])
-
-        if not messages:
+        msg_data = data["entry"][0]["changes"][0]["value"]
+        mensagens = msg_data.get("messages", [])
+        if not mensagens:
             print("⚠️ Nenhuma mensagem recebida.")
             return "ok", 200
 
-        msg = messages[0]
+        msg = mensagens[0]
         telefone = msg["from"]
         mensagem = None
         resposta = None
 
         if "text" in msg:
             mensagem = msg["text"]["body"]
-
-        elif msg.get("type") == "audio":
-            media_id = msg["audio"]["id"]
-            print(f"🎧 Áudio recebido - media_id: {media_id}")
-            blob = baixar_audio_do_meta(media_id)
-            if blob:
-                mensagem = transcrever_audio(blob)
-                if not mensagem:
-                    resposta = "Não consegui entender o áudio. Pode me mandar por texto, por favor? 💙"
-            else:
-                resposta = "Tive dificuldade pra acessar o áudio. Consegue me mandar por texto? 💬"
-
+        elif msg["type"] == "audio":
+            print(f"🎧 Áudio recebido: {msg['audio']['id']}")
+            blob = baixar_audio_do_meta(msg["audio"]["id"])
+            mensagem = transcrever_audio(blob) if blob else None
+            if not mensagem:
+                resposta = "Não consegui entender o áudio. Pode me mandar por texto? 💙"
         else:
-            resposta = "Consigo te ajudar melhor se me mandar uma mensagem de texto 💬"
+            resposta = "Consegue me mandar por texto? Fico no aguardo 💬"
 
         if mensagem:
-            historico = historicos.get(telefone, "")
-            messages_to_gpt = [{"role": "system", "content": BASE_PROMPT}]
-            if historico:
-                messages_to_gpt.append({"role": "user", "content": historico})
-            messages_to_gpt.append({"role": "user", "content": mensagem})
+            prompt = [{"role": "system", "content": BASE_PROMPT}]
+            if historicos.get(telefone):
+                prompt.append({"role": "user", "content": historicos[telefone]})
+            prompt.append({"role": "user", "content": mensagem})
 
             completion = client.chat.completions.create(
                 model="gpt-4o",
-                messages=messages_to_gpt,
+                messages=prompt,
                 temperature=0.5,
                 max_tokens=300
             )
             resposta = completion.choices[0].message.content.strip()
-            historicos[telefone] = f"{historico}\nCliente: {mensagem}\nGraziela: {resposta}".strip()
+            historicos[telefone] = f"{historicos.get(telefone, '')}\nCliente: {mensagem}\nGraziela: {resposta}".strip()
             print(f"🤖 GPT: {resposta}")
 
         whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
@@ -239,6 +237,8 @@ def webhook():
         }
         response = requests.post(whatsapp_url, headers=headers, json=payload)
         print(f"📤 Enviado para WhatsApp: {response.status_code} | {response.text}")
+
+        registrar_no_sheets(telefone, mensagem, resposta)
 
         return "ok", 200
 
