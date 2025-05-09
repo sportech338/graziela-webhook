@@ -8,6 +8,7 @@ import base64
 import gspread
 from google.oauth2.service_account import Credentials
 from google.cloud import firestore
+import time
 
 app = Flask(__name__)
 
@@ -193,7 +194,7 @@ def resumir_historico(historico):
         res = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "Resuma com clareza e sem perder contexto e detalhes importantes sobre o que motiva o cliente, de onde veio, quando abandonou no último contato, se a conversa havia sido finalizada ou não, se ele já havia comprado. Foque em manter a essência do cliente para que Graziela entenda a situação e dê continuidade com empatia e coerência."},
+                {"role": "system", "content": "Resuma com clareza e sem perder contexto..."},
                 {"role": "user", "content": historico}
             ],
             max_tokens=300,
@@ -295,13 +296,17 @@ def webhook():
             "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN']}",
             "Content-Type": "application/json"
         }
-        payload = {
-            "messaging_product": "whatsapp",
-            "to": telefone,
-            "text": {"body": resposta}
-        }
-        response = requests.post(whatsapp_url, headers=headers, json=payload)
-        print(f"📤 Enviado para WhatsApp: {response.status_code} | {response.text}")
+
+        blocos = [bloco.strip() for bloco in resposta.split("\n\n") if bloco.strip()]
+        for i, bloco in enumerate(blocos):
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": telefone,
+                "text": {"body": bloco}
+            }
+            response = requests.post(whatsapp_url, headers=headers, json=payload)
+            print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {response.status_code} | {response.text}")
+            time.sleep(1)
 
         registrar_no_sheets(telefone, mensagem, resposta)
         return "ok", 200
