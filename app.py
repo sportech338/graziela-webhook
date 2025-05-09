@@ -145,7 +145,8 @@ def criar_arquivo_credenciais():
     except Exception as e:
         print(f"❌ Erro ao criar credentials.json: {e}")
 
-criar_arquivo_credenciais()
+if not os.path.exists("credentials.json"):
+    criar_arquivo_credenciais()
 
 
 CREDENTIALS_PATH = "credentials.json"
