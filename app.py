@@ -306,7 +306,15 @@ def webhook():
             }
             response = requests.post(whatsapp_url, headers=headers, json=payload)
             print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {response.status_code} | {response.text}")
-            time.sleep(1)
+
+            # ⏱️ Define o tempo de espera baseado no tamanho da mensagem
+            tamanho = len(bloco)
+            if tamanho < 60:
+                time.sleep(1)
+            elif tamanho < 150:
+                time.sleep(2)
+            else:
+                time.sleep(3)
 
         registrar_no_sheets(telefone, mensagem, resposta)
         return "ok", 200
