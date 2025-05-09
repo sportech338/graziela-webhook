@@ -10,7 +10,6 @@ app = Flask(__name__)
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 historicos = {}
 
-# 💬 Prompt base completo da Graziela
 BASE_PROMPT = """
 Você é Graziela, vendedora da Sportech. Seu papel não é vender um produto. Seu papel é ajudar pessoas a retomarem sua qualidade de vida com consciência, empatia e clareza.
 
@@ -124,6 +123,41 @@ https://lojasportech.com/collections/ofertas_da_semana/products/flexlive-novo
 Esse é o espírito da Graziela: presença, sensibilidade e intenção.  
 Ela vende quando ajuda — e ajuda de verdade quando escuta. A conversa é o caminho. A venda, a consequência.
 """
+
+# Função: baixar áudio via Graph API
+def baixar_audio_do_meta(media_id):
+    try:
+        token = os.environ["WHATSAPP_TOKEN"]
+        url_info = f"https://graph.facebook.com/v18.0/{media_id}"
+        headers = {"Authorization": f"Bearer {token}"}
+        res_info = requests.get(url_info, headers=headers)
+        res_info.raise_for_status()
+        file_url = res_info.json()["url"]
+
+        res_audio = requests.get(file_url, headers=headers)
+        res_audio.raise_for_status()
+        return res_audio.content
+    except Exception as e:
+        print(f"❌ Erro ao baixar áudio: {e}")
+        return None
+
+# Função: transcrever com Whisper
+def transcrever_audio(blob):
+    try:
+        response = requests.post(
+            "https://api.openai.com/v1/audio/transcriptions",
+            headers={
+                "Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"
+            },
+            files={"file": ("audio.ogg", blob, "audio/ogg")},
+            data={"model": "whisper-1", "language": "pt"}
+        )
+        response.raise_for_status()
+        return response.json()["text"]
+    except Exception as e:
+        print(f"❌ Erro na transcrição: {e}")
+        return None
+
 @app.route("/", methods=["GET"])
 def home():
     return "Servidor da Graziela com memória ativa 💬🧠"
@@ -134,9 +168,7 @@ def verify_webhook():
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
     if mode == "subscribe" and token == os.environ.get("VERIFY_TOKEN", "sportech-token"):
-        print("Webhook verificado com sucesso.")
         return make_response(challenge, 200)
-    print("Erro ao verificar o webhook.")
     return make_response("Erro de verificação", 403)
 
 @app.route("/webhook", methods=["POST"])
@@ -146,7 +178,7 @@ def webhook():
         data = request.get_json()
         print(f"\n✅ [{now}] JSON recebido:")
         print(json.dumps(data, indent=2))
-        
+
         entry = data.get("entry", [])[0]
         changes = entry.get("changes", [])[0]
         value = changes.get("value", {})
@@ -158,27 +190,43 @@ def webhook():
 
         msg = messages[0]
         telefone = msg["from"]
-        mensagem = msg["text"]["body"]
+        mensagem = None
+        resposta = None
 
-        # Geração da resposta com GPT
-        historico = historicos.get(telefone, "")
-        messages_to_gpt = [{"role": "system", "content": BASE_PROMPT}]
-        if historico:
-            messages_to_gpt.append({"role": "user", "content": historico})
-        messages_to_gpt.append({"role": "user", "content": mensagem})
+        if "text" in msg:
+            mensagem = msg["text"]["body"]
 
-        completion = client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages_to_gpt,
-            temperature=0.5,
-            max_tokens=300
-        )
-        resposta = completion.choices[0].message.content.strip()
-        print(f"🤖 GPT: {resposta}")
+        elif msg.get("type") == "audio":
+            media_id = msg["audio"]["id"]
+            print(f"🎧 Áudio recebido - media_id: {media_id}")
+            blob = baixar_audio_do_meta(media_id)
+            if blob:
+                mensagem = transcrever_audio(blob)
+                if not mensagem:
+                    resposta = "Não consegui entender o áudio. Pode me mandar por texto, por favor? 💙"
+            else:
+                resposta = "Tive dificuldade pra acessar o áudio. Consegue me mandar por texto? 💬"
 
-        historicos[telefone] = f"{historico}\nCliente: {mensagem}\nGraziela: {resposta}".strip()
+        else:
+            resposta = "Consigo te ajudar melhor se me mandar uma mensagem de texto 💬"
 
-        # Envio da resposta pelo WhatsApp Cloud API
+        if mensagem:
+            historico = historicos.get(telefone, "")
+            messages_to_gpt = [{"role": "system", "content": BASE_PROMPT}]
+            if historico:
+                messages_to_gpt.append({"role": "user", "content": historico})
+            messages_to_gpt.append({"role": "user", "content": mensagem})
+
+            completion = client.chat.completions.create(
+                model="gpt-4o",
+                messages=messages_to_gpt,
+                temperature=0.5,
+                max_tokens=300
+            )
+            resposta = completion.choices[0].message.content.strip()
+            historicos[telefone] = f"{historico}\nCliente: {mensagem}\nGraziela: {resposta}".strip()
+            print(f"🤖 GPT: {resposta}")
+
         whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
         headers = {
             "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN']}",
