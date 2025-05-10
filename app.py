@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, make_response
 import os
 import openai
 import requests
@@ -11,7 +11,6 @@ from google.cloud import firestore
 import time
 
 app = Flask(__name__)
-
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 # === BASE PROMPT DA GRAZIELA ===
@@ -129,11 +128,10 @@ Esse é o espírito da Graziela: presença, sensibilidade e intenção.
 Ela vende quando ajuda — e ajuda de verdade quando escuta. A conversa é o caminho. A venda, a consequência.
 """
 
-# === CONFIGURAÇÃO GOOGLE SHEETS E FIRESTORE ===
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 SPREADSHEET_NAME = "Histórico de conversas | Graziela"
 
-# Cria arquivo credentials.json a partir da variável de ambiente base64
+# Cria arquivo credentials.json
 def criar_arquivo_credenciais():
     try:
         encoded = os.environ.get("GOOGLE_CREDENTIALS_BASE64")
@@ -163,22 +161,32 @@ def registrar_no_sheets(telefone, mensagem, resposta):
     except Exception as e:
         print(f"❌ Erro ao registrar no Google Sheets: {e}")
 
-def salvar_no_firestore(telefone, mensagem, resposta):
+def salvar_no_firestore(telefone, mensagem, resposta, msg_id):
     try:
         doc_ref = firestore_client.collection("conversas").document(telefone)
         doc = doc_ref.get()
-        historico = doc.to_dict()["historico"] if doc.exists and "historico" in doc.to_dict() else ""
+        data = doc.to_dict() if doc.exists else {}
+
+        if data.get("last_msg_id") == msg_id:
+            print("⚠️ Mensagem já processada anteriormente. Ignorando.")
+            return False
+
+        historico = data.get("historico", "")
         novo_historico = f"{historico}\nCliente: {mensagem}\nGraziela: {resposta}".strip()
+
         doc_ref.set({
             "telefone": telefone,
             "ultima_interacao": datetime.now(),
             "mensagem": mensagem,
             "resposta": resposta,
-            "historico": novo_historico
+            "historico": novo_historico,
+            "last_msg_id": msg_id
         })
         print("📆 Conversa registrada no Firestore.")
+        return True
     except Exception as e:
         print(f"❌ Erro ao salvar no Firestore: {e}")
+        return False
 
 def obter_historico(telefone):
     try:
@@ -205,7 +213,7 @@ def resumir_historico(historico):
         return resumo
     except Exception as e:
         print(f"❌ Erro ao resumir histórico: {e}")
-        return historico
+        return historico[-3000:]
 
 def baixar_audio_do_meta(media_id):
     try:
@@ -258,12 +266,13 @@ def webhook():
 
         msg = mensagens[0]
         telefone = msg["from"]
+        msg_id = msg.get("id")
         mensagem = None
         resposta = None
 
         if "text" in msg:
             mensagem = msg["text"]["body"]
-        elif msg["type"] == "audio":
+        elif msg.get("type") == "audio":
             print(f"🎧 Áudio recebido: {msg['audio']['id']}")
             blob = baixar_audio_do_meta(msg["audio"]["id"])
             mensagem = transcrever_audio(blob) if blob else None
@@ -278,8 +287,8 @@ def webhook():
             if len(historico) > 3000:
                 historico = resumir_historico(historico)
             if historico:
-                prompt.append({"role": "user", "content": historico})
-            prompt.append({"role": "user", "content": mensagem})
+                prompt.append({"role": "user", "content": f"Histórico da conversa:\n{historico}"})
+            prompt.append({"role": "user", "content": f"Nova mensagem do cliente:\n{mensagem}"})
 
             completion = client.chat.completions.create(
                 model="gpt-4o",
@@ -289,35 +298,40 @@ def webhook():
             )
             resposta = completion.choices[0].message.content.strip()
             print(f"🤖 GPT: {resposta}")
-            salvar_no_firestore(telefone, mensagem, resposta)
+            if not resposta:
+                print("⚠️ Resposta GPT veio vazia. Ignorando envio.")
+                return "ok", 200
+            if not salvar_no_firestore(telefone, mensagem, resposta, msg_id):
+                return "ok", 200
 
-        whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
-        headers = {
-            "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN']}",
-            "Content-Type": "application/json"
-        }
-
-        blocos = [bloco.strip() for bloco in resposta.split("\n\n") if bloco.strip()]
-        for i, bloco in enumerate(blocos):
-            payload = {
-                "messaging_product": "whatsapp",
-                "to": telefone,
-                "text": {"body": bloco}
+        if resposta:
+            whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
+            headers = {
+                "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN']}",
+                "Content-Type": "application/json"
             }
-            response = requests.post(whatsapp_url, headers=headers, json=payload)
-            print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {response.status_code} | {response.text}")
 
-            # ⏱️ Define o tempo de espera baseado no tamanho da mensagem
-            tamanho = len(bloco)
-            if tamanho < 60:
-                time.sleep(1)
-            elif tamanho < 150:
-                time.sleep(2)
-            else:
-                time.sleep(3)
+            blocos = [bloco.strip() for bloco in resposta.split("\n\n") if bloco.strip()]
+            for i, bloco in enumerate(blocos):
+                payload = {
+                    "messaging_product": "whatsapp",
+                    "to": telefone,
+                    "text": {"body": bloco}
+                }
+                response = requests.post(whatsapp_url, headers=headers, json=payload)
+                print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {response.status_code} | {response.text}")
 
-        resposta_compacta = " ".join(blocos)  # Junta os blocos em uma única string
-        registrar_no_sheets(telefone, mensagem, resposta_compacta)
+                tamanho = len(bloco)
+                if tamanho < 60:
+                    time.sleep(1)
+                elif tamanho < 150:
+                    time.sleep(2)
+                else:
+                    time.sleep(3)
+
+            resposta_compacta = " ".join(blocos)
+            registrar_no_sheets(telefone, mensagem, resposta_compacta)
+
         return "ok", 200
 
     except Exception as e:
