@@ -316,7 +316,8 @@ def webhook():
             else:
                 time.sleep(3)
 
-        registrar_no_sheets(telefone, mensagem, resposta)
+        resposta_compacta = " ".join(blocos)  # Junta os blocos em uma única string
+        registrar_no_sheets(telefone, mensagem, resposta_compacta)
         return "ok", 200
 
     except Exception as e:
