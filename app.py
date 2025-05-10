@@ -13,7 +13,6 @@ import time
 app = Flask(__name__)
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-# === BASE PROMPT DA GRAZIELA ===
 BASE_PROMPT = """
 Você é Graziela, vendedora da Sportech. Seu papel não é vender um produto. Seu papel é ajudar pessoas a retomarem sua qualidade de vida com consciência, empatia e clareza.
 
@@ -127,11 +126,10 @@ https://lojasportech.com/collections/ofertas_da_semana/products/flexlive-novo
 Esse é o espírito da Graziela: presença, sensibilidade e intenção.  
 Ela vende quando ajuda — e ajuda de verdade quando escuta. A conversa é o caminho. A venda, a consequência.
 """
-
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 SPREADSHEET_NAME = "Histórico de conversas | Graziela"
 
-# Cria arquivo credentials.json
+
 def criar_arquivo_credenciais():
     try:
         encoded = os.environ.get("GOOGLE_CREDENTIALS_BASE64")
@@ -144,11 +142,13 @@ def criar_arquivo_credenciais():
     except Exception as e:
         print(f"❌ Erro ao criar credentials.json: {e}")
 
+
 if not os.path.exists("credentials.json"):
     criar_arquivo_credenciais()
 
 CREDENTIALS_PATH = "credentials.json"
 firestore_client = firestore.Client.from_service_account_json(CREDENTIALS_PATH)
+
 
 def registrar_no_sheets(telefone, mensagem, resposta):
     try:
@@ -161,6 +161,7 @@ def registrar_no_sheets(telefone, mensagem, resposta):
     except Exception as e:
         print(f"❌ Erro ao registrar no Google Sheets: {e}")
 
+
 def salvar_no_firestore(telefone, mensagem, resposta, msg_id):
     try:
         doc_ref = firestore_client.collection("conversas").document(telefone)
@@ -171,31 +172,49 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id):
             print("⚠️ Mensagem já processada anteriormente. Ignorando.")
             return False
 
-        historico = data.get("historico", "")
-        novo_historico = f"{historico}\nCliente: {mensagem}\nGraziela: {resposta}".strip()
+        mensagens = data.get("mensagens", [])
+        resumo = data.get("resumo", "")
+        agora = datetime.now()
+
+        mensagens.append({"quem": "cliente", "texto": mensagem, "timestamp": agora.isoformat()})
+        mensagens.append({"quem": "graziela", "texto": resposta, "timestamp": agora.isoformat()})
+
+        if len(mensagens) > 40:
+            texto_completo = "\n".join([f"{'Cliente' if m['quem']=='cliente' else 'Graziela'}: {m['texto']}" for m in mensagens])
+            novo_resumo = resumir_historico(texto_completo)
+            resumo = f"{resumo}\n{novo_resumo}".strip()
+            mensagens = mensagens[-6:]
+            print("📉 Mensagens antigas resumidas.")
 
         doc_ref.set({
             "telefone": telefone,
-            "ultima_interacao": datetime.now(),
-            "mensagem": mensagem,
-            "resposta": resposta,
-            "historico": novo_historico,
+            "ultima_interacao": agora,
+            "mensagens": mensagens,
+            "resumo": resumo,
+            "ultimo_resumo_em": agora.isoformat(),
             "last_msg_id": msg_id
         })
-        print("📆 Conversa registrada no Firestore.")
+        print("📦 Mensagens salvas e histórico controlado no Firestore.")
         return True
+
     except Exception as e:
         print(f"❌ Erro ao salvar no Firestore: {e}")
         return False
 
-def obter_historico(telefone):
+
+def obter_contexto(telefone):
     try:
         doc = firestore_client.collection("conversas").document(telefone).get()
         if doc.exists:
-            return doc.to_dict().get("historico", "")
+            dados = doc.to_dict()
+            resumo = dados.get("resumo", "")
+            mensagens = dados.get("mensagens", [])
+            linhas = [f"{'Cliente' if m['quem']=='cliente' else 'Graziela'}: {m['texto']}" for m in mensagens]
+            return f"{resumo}\n" + "\n".join(linhas) if resumo else "\n".join(linhas)
     except Exception as e:
-        print(f"❌ Erro ao buscar histórico no Firestore: {e}")
+        print(f"❌ Erro ao obter contexto: {e}")
     return ""
+
 
 def resumir_historico(historico):
     try:
@@ -215,6 +234,7 @@ def resumir_historico(historico):
         print(f"❌ Erro ao resumir histórico: {e}")
         return historico[-3000:]
 
+
 def baixar_audio_do_meta(media_id):
     try:
         token = os.environ["WHATSAPP_TOKEN"]
@@ -226,6 +246,7 @@ def baixar_audio_do_meta(media_id):
     except Exception as e:
         print(f"❌ Erro ao baixar áudio: {e}")
         return None
+
 
 def transcrever_audio(blob):
     try:
@@ -240,15 +261,18 @@ def transcrever_audio(blob):
         print(f"❌ Erro na transcrição: {e}")
         return None
 
+
 @app.route("/", methods=["GET"])
 def home():
     return "Servidor da Graziela com memória ativa 💬🧠"
+
 
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
     if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.verify_token") == os.environ.get("VERIFY_TOKEN"):
         return make_response(request.args.get("hub.challenge"), 200)
     return make_response("Erro de verificação", 403)
+
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -283,11 +307,9 @@ def webhook():
 
         if mensagem:
             prompt = [{"role": "system", "content": BASE_PROMPT}]
-            historico = obter_historico(telefone)
-            if len(historico) > 3000:
-                historico = resumir_historico(historico)
-            if historico:
-                prompt.append({"role": "user", "content": f"Histórico da conversa:\n{historico}"})
+            contexto = obter_contexto(telefone)
+            if contexto:
+                prompt.append({"role": "user", "content": f"Histórico da conversa:\n{contexto}"})
             prompt.append({"role": "user", "content": f"Nova mensagem do cliente:\n{mensagem}"})
 
             completion = client.chat.completions.create(
@@ -337,6 +359,7 @@ def webhook():
     except Exception as e:
         print(f"❌ Erro no webhook: {e}")
         return make_response("Erro interno", 500)
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 3000)))
