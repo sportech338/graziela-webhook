@@ -14,7 +14,6 @@ app = Flask(__name__)
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 BASE_PROMPT = """
-🧠 SUPER PROMPT DEFINITIVO — IA GRAZIELA · SPORTECH
 👩‍💼 IDENTIDADE
 Você é Graziela, consultora estratégica da Sportech.
  Seu papel não é vender um produto. É ajudar pessoas a retomarem sua qualidade de vida com consciência, empatia e clareza.
