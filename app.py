@@ -410,8 +410,11 @@ def transcrever_audio(blob):
             files={"file": ("audio.ogg", blob, "audio/ogg")},
             data={"model": "whisper-1", "language": "pt"}
         )
+        if res.status_code != 200 or "text" not in res.json():
+            raise Exception("Falha na transcrição.")
         return res.json()["text"]
-    except:
+    except Exception as e:
+        print(f"❌ Erro na transcrição de áudio: {e}")
         return None
 
 def quebrar_em_blocos_humanizado(texto, limite=350):
@@ -564,7 +567,7 @@ def processar_mensagem(telefone):
     msg_id = mensagens_ordenadas[-1]["msg_id"]
 
     print(f"🧩 Mensagem completa da fila: {mensagem_completa}")
-
+    
     etapa = "inicio"
     mensagem_lower = mensagem_completa.lower()
 
@@ -572,8 +575,10 @@ def processar_mensagem(telefone):
         etapa = "pagamento_realizado"
     elif any(p in mensagem_lower for p in ["pix", "transferência", "como pagar", "chave"]):
         etapa = "aguardando_pagamento"
-    elif any(p in mensagem_lower for p in ["nome completo", "cpf", "cep", "telefone", "email"]):
-        etapa = "coletando_dados"
+    elif all(p in mensagem_lower for p in ["nome", "cpf", "telefone"]) and any(p in mensagem_lower for p in ["email", "e-mail"]):
+        etapa = "coletando_dados_pessoais"
+    elif all(p in mensagem_lower for p in ["cep", "endereço", "número", "bairro", "cidade"]):
+        etapa = "coletando_endereco"
     elif any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "tem desconto"]):
         etapa = "solicitou_valor"
     elif any(p in mensagem_lower for p in ["caro", "muito caro", "tá puxado", "sem grana", "não tenho dinheiro", "tá difícil", "no momento não consigo"]):
@@ -602,6 +607,42 @@ def processar_mensagem(telefone):
 IMPORTANTE: Antes de apresentar qualquer preço, valide com empatia o que a pessoa sente e reforce a importância de aliviar essa dor com segurança.
 
 Depois disso, apresente os kits com no máximo 3 frases curtas por bloco (até 350 caracteres cada), separadas por **duas quebras de linha (`\\n\\n`)**, de forma leve e consultiva."""})
+
+    elif etapa == "coletando_dados_pessoais":
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+IMPORTANTE: O cliente demonstrou que quer fechar o pedido. Agora, conduza com leveza a coleta dos dados pessoais em blocos curtos e claros:
+
+Bloco 1:
+"Perfeito! Vamos garantir seu pedido com segurança."
+
+Bloco 2:
+"Para começar, vou precisar de alguns dados seus:
+
+- Nome completo:
+- CPF:
+- Telefone com DDD:"
+
+Bloco 3:
+"Apresenta algum e-mail para envio do código de rastreio?" """})
+
+    elif etapa == "coletando_endereco":
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+IMPORTANTE: O cliente já passou os dados pessoais. Agora peça com gentileza os dados de endereço.
+
+Bloco 1:
+"Agora, vamos precisar do seu endereço completo:
+
+- CEP:
+- Endereço completo:
+- Número:
+- Complemento (opcional):"
+
+Bloco 2:
+"Assim que tiver tudo certinho, seguimos com a finalização do pedido." """})
 
     elif etapa in ["resistencia_financeira", "dor_cronica"]:
         prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
@@ -639,7 +680,7 @@ IMPORTANTE: Estruture sua resposta em **blocos de até 3 frases curtas**, com no
 
 Assim consigo entregar sua resposta no WhatsApp de forma mais natural, simulando uma conversa real."""})
 
-completion = client.chat.completions.create(
+    completion = client.chat.completions.create(
         model="gpt-4o",
         messages=prompt,
         temperature=0.5,
@@ -655,7 +696,8 @@ completion = client.chat.completions.create(
 
     # Ajusta o delay inicial com base na etapa
     etapas_delay = {
-        "coletando_dados": 120,
+        "coletando_dados_pessoais": 120,
+        "coletando_endereco": 120,
         "pagamento_realizado": 25,
         "aguardando_pagamento": 30,
         "resistencia_financeira": 20
@@ -665,8 +707,23 @@ completion = client.chat.completions.create(
     if tempos:
         tempos[0] = delay_inicial
 
-    if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
-        return
+    if etapa == "inicio":
+        resposta_lower = resposta.lower()
+        if "vou precisar de alguns dados seus" in resposta_lower or "para começar, vou precisar" in resposta_lower:
+            etapa = "coletando_dados_pessoais"
+        elif "precisar do seu endereço completo" in resposta_lower:
+            etapa = "coletando_endereco"
+        elif "prefere pix à vista" in resposta_lower:
+            etapa = "pergunta_forma_pagamento"
+
+    # Verifica se a mensagem já foi processada anteriormente
+    doc_ref = firestore_client.collection("conversas").document(telefone)
+    doc = doc_ref.get()
+    if doc.exists and doc.to_dict().get("last_msg_id") == msg_id:
+        print("⚠️ Mensagem já foi processada. Pulando salvar_no_firestore.")
+    else:
+        if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
+            return
 
     whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
     headers = {
