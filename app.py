@@ -385,9 +385,19 @@ def transcrever_audio(blob):
             data={"model": "whisper-1", "language": "pt"}
         )
         return res.json()["text"]
-    except Exception as e:
-        print(f"❌ Erro na transcrição: {e}")
+    except:
         return None
+
+def processar_mensagem(telefone, msg_id):
+    time.sleep(15)
+    temp_ref = firestore_client.collection("conversas_temp").document(telefone)
+    temp_doc = temp_ref.get()
+    if not temp_doc.exists:
+        return
+    dados = temp_doc.to_dict()
+    mensagens = dados.get("pendentes", [])
+    if not mensagens:
+        return
 
 
 @app.route("/", methods=["GET"])
@@ -439,32 +449,41 @@ def webhook():
         mensagem = ""
         if telefone in mensagens_por_remetente:
             sorted_msgs = sorted(mensagens_por_remetente[telefone], key=lambda x: x[0])
-            anterior = sorted_msgs[0][0]
-            partes = [sorted_msgs[0][1]]
+            nova_mensagem = " ".join([txt for _, txt in sorted_msgs]).strip()
 
-            for ts, txt in sorted_msgs[1:]:
-                if (ts - anterior).total_seconds() <= 10:
-                    partes.append(txt)
+            try:
+                doc_ref = firestore_client.collection("conversas").document(telefone)
+                doc = doc_ref.get()
+                historico = doc.to_dict() if doc.exists else {}
+                mensagens_anteriores = historico.get("mensagens", [])
+
+                if mensagens_anteriores and mensagens_anteriores[-1]["quem"] == "cliente":
+                    ultima_msg_cliente = mensagens_anteriores[-1]["texto"]
+                    mensagem = f"{ultima_msg_cliente} {nova_mensagem}".strip()
+                    print("🔁 Agrupando com mensagem anterior do cliente.")
                 else:
-                    break  # Para de agrupar se o tempo entre mensagens for maior que 10s
-                anterior = ts
+                    mensagem = nova_mensagem
+            except Exception as e:
+                print(f"❌ Erro ao verificar última mensagem no Firestore: {e}")
+                mensagem = nova_mensagem
 
-            mensagem = " ".join(partes).strip()
-
-            # ✅ DEBUG opcional
             print(f"🧩 Mensagem agrupada: {mensagem}")
+
+            # Espera 12 segundos para verificar se o cliente continuará mandando mensagem
+            print("⏳ Esperando 12 segundos para verificar se virão mais mensagens...")
+            time.sleep(12)
 
         # 👇 NOVO BLOCO: lógica de etapa com base na mensagem
         etapa = "inicio"
         mensagem_lower = mensagem.lower()
         if any(p in mensagem_lower for p in ["paguei", "tá pago", "acabei de pagar", "enviei o comprovante", "segue o comprovante", "já fiz o pagamento", "já paguei", "comprovante"]):
-           etapa = "pagamento_realizado"
+            etapa = "pagamento_realizado"
         elif any(p in mensagem_lower for p in ["pix", "transferência", "chave pix", "como pagar", "me passa os dados", "me passa a chave", "quero pagar", "vou pagar agora"]):
-           etapa = "aguardando_pagamento"
+            etapa = "aguardando_pagamento"
         elif any(p in mensagem_lower for p in ["nome completo", "cpf", "endereço", "cep", "telefone", "e-mail", "email"]):
-           etapa = "coletando_dados"
+            etapa = "coletando_dados"
         elif any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "custa quanto", "qual o valor", "tem desconto", "me passa o preço"]):
-           etapa = "solicitou_valor"
+            etapa = "solicitou_valor"
 
         if not mensagem:
             resposta = "Consegue me mandar por texto? Fico no aguardo 💬"
