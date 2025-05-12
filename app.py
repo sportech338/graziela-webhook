@@ -10,6 +10,7 @@ from google.oauth2.service_account import Credentials
 from google.cloud import firestore
 import time
 from collections import defaultdict
+import threading
 
 app = Flask(__name__)
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
