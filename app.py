@@ -436,29 +436,23 @@ def webhook():
                 if transcricao:
                     mensagens_por_remetente[telefone].append((timestamp, transcricao))
 
-        mensagens_agrupadas = []
+        mensagem = ""
         if telefone in mensagens_por_remetente:
-            agrupadas = []
             sorted_msgs = sorted(mensagens_por_remetente[telefone], key=lambda x: x[0])
             anterior = sorted_msgs[0][0]
-            bloco = [sorted_msgs[0][1]]
+            partes = [sorted_msgs[0][1]]
 
             for ts, txt in sorted_msgs[1:]:
                 if (ts - anterior).total_seconds() <= 10:
-                    bloco.append(txt)
+                    partes.append(txt)
                 else:
-                    mensagens_agrupadas.append(" ".join(bloco))
-                    bloco = [txt]
+                    break  # Para de agrupar se o tempo entre mensagens for maior que 10s
                 anterior = ts
 
-            if bloco:
-                mensagens_agrupadas.append(" ".join(bloco))
+            mensagem = " ".join(partes).strip()
 
-            # ✅ DEBUG: Exibir blocos agrupados (opcional)
-            for i, bloco in enumerate(mensagens_agrupadas):
-                print(f"🧩 Bloco {i+1}: {bloco}")
-
-        mensagem = "\n".join(mensagens_agrupadas).strip()  # ✅ Agora está antes
+            # ✅ DEBUG opcional
+            print(f"🧩 Mensagem agrupada: {mensagem}")
 
         # 👇 NOVO BLOCO: lógica de etapa com base na mensagem
         etapa = "inicio"
