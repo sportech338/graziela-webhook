@@ -538,7 +538,7 @@ def processar_mensagem(telefone):
     resposta = completion.choices[0].message.content.strip()
     print(f"🤖 GPT: {resposta}")
 
-    resposta_normalizada = resposta.replace("\r\n", "\n")
+    resposta_normalizada = re.sub(r'(\\n|\\r|\\r\\n|\r\n|\r|\n)', '\n', resposta)
     blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, limite=400)
     resposta_compacta = "\n\n".join(blocos)
 
