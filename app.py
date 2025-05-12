@@ -150,7 +150,7 @@ Quando houver interesse direto ou indireto:
 Valide com entusiasmo:
 "Perfeito, [Nome]! Esse kit é um dos mais escolhidos pra esse tipo de dor."
 
-Pergunte forma de pagamento:
+Pergunte a forma de pagamento:
 "Prefere Pix à vista com desconto ou cartão em até 12x?"
 
 Pausa estratégica:
@@ -168,9 +168,15 @@ E-mail (para envio de rastreio)
 
 Endereço completo: CEP, rua, número, complemento, bairro, cidade/estado
 
-Após confirmar os dados, envie o método de pagamento:
-"Tudo certinho por aqui. Agora sim, vou te passar a chave Pix pra gente garantir o seu pedido."
-"Nossa chave Pix é o CNPJ: 52.940.645/0001-08"
+Envio da chave Pix — formato validado (em blocos curtos):
+Mensagem 1:
+"Tudo certinho por aqui. Agora sim, vou te passar a chave Pix (CNPJ) pra gente garantir o seu pedido com agilidade e segurança, tudo bem?"
+
+Mensagem 2:
+52.940.645/0001-08
+
+Mensagem 3:
+"Assim que fizer o pagamento, me envia o comprovante aqui mesmo. Assim consigo confirmar rapidinho no sistema e seguir com o envio do seu pedido."
 
 🔍 ANTECIPAÇÃO DE OBJEÇÕES
 
@@ -246,7 +252,6 @@ Graziela não vende produto. Ela transforma realidades.Ela escuta, entende, reco
 
 🌟 Lembre-se: cada conversa pode ser a virada de chave para alguém voltar a andar, a trabalhar ou simplesmente viver com mais dignidade. Conduza com o coração, a clareza e a presença que a situação merece.
 """
-
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 SPREADSHEET_NAME = "Histórico de conversas | Graziela"
 
@@ -409,24 +414,28 @@ def webhook():
             print("⚠️ Nenhuma mensagem recebida.")
             return "ok", 200
 
-        msg = mensagens[0]
-        telefone = msg["from"]
-        msg_id = msg.get("id")
-        mensagem = None
+        mensagens_agrupadas = []
+        telefone = None
+        msg_id = None
+
+        for msg in mensagens:
+            telefone = msg.get("from")
+            msg_id = msg.get("id")
+            if msg.get("type") == "text":
+                mensagens_agrupadas.append(msg["text"]["body"])
+            elif msg.get("type") == "audio":
+                print(f"🎧 Áudio recebido: {msg['audio']['id']}")
+                blob = baixar_audio_do_meta(msg["audio"]["id"])
+                transcricao = transcrever_audio(blob) if blob else None
+                if transcricao:
+                    mensagens_agrupadas.append(transcricao)
+
+        mensagem = "\n".join(mensagens_agrupadas).strip()
         resposta = None
 
-        if "text" in msg:
-            mensagem = msg["text"]["body"]
-        elif msg.get("type") == "audio":
-            print(f"🎧 Áudio recebido: {msg['audio']['id']}")
-            blob = baixar_audio_do_meta(msg["audio"]["id"])
-            mensagem = transcrever_audio(blob) if blob else None
-            if not mensagem:
-                resposta = "Não consegui entender o áudio. Pode me mandar por texto? 💙"
-        else:
+        if not mensagem:
             resposta = "Consegue me mandar por texto? Fico no aguardo 💬"
-
-        if mensagem:
+        else:
             prompt = [{"role": "system", "content": BASE_PROMPT}]
             contexto = obter_contexto(telefone)
             if contexto:
@@ -441,6 +450,7 @@ def webhook():
             )
             resposta = completion.choices[0].message.content.strip()
             print(f"🤖 GPT: {resposta}")
+
             if not resposta:
                 print("⚠️ Resposta GPT veio vazia. Ignorando envio.")
                 return "ok", 200
