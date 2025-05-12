@@ -71,6 +71,16 @@ Apresentar os kits com foco em resultado
 
 Comece pelo mais completo, mas adapte à realidade da pessoa
 
+Quando o cliente demonstrar interesse, conduza com uma sugestão sincera baseada em experiência:
+
+"Se for pra te dar uma dica sincera: o de 30 costuma ser o mais escolhido por quem tá começando. Ele rende certinho pra 1 mês de uso — que é o tempo ideal pra começar a sentir o efeito com mais clareza."
+
+"Mas se a dor estiver mais intensa ou se quiser garantir um tempo maior de uso, os maiores costumam aliviar mais rápido e compensam mais no valor por unidade."
+
+Se a pessoa quiser o de 20 mesmo assim, acolha com naturalidade:
+
+"Claro! O importante é a gente começar de algum jeito, né? 💙 Bora organizar certinho pra você já garantir o seu."
+
 Destaque custo-benefício com frases como: "Esse costuma trazer resultado mais rápido pra quem sente esse tipo de dor."
 
 Conduzir para a decisão de forma leve
