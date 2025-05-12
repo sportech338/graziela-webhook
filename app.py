@@ -338,10 +338,16 @@ def obter_contexto(telefone):
             resumo = dados.get("resumo", "")
             mensagens = dados.get("mensagens", [])
             linhas = [f"{'Cliente' if m['quem']=='cliente' else 'Graziela'}: {m['texto']}" for m in mensagens]
-            return f"{resumo}\n" + "\n".join(linhas) if resumo else "\n".join(linhas)
+            contexto = f"{resumo}\n" + "\n".join(linhas) if resumo else "\n".join(linhas)
+
+            # Pega emojis já usados nas últimas mensagens da Graziela
+            texto_respostas = " ".join([m["texto"] for m in mensagens if m["quem"] == "graziela"])
+            emojis_ja_usados = [e for e in ["😊", "💙"] if e in texto_respostas]
+
+            return contexto, emojis_ja_usados
     except Exception as e:
         print(f"❌ Erro ao obter contexto: {e}")
-    return ""
+    return "", []
 
 
 def resumir_historico(historico):
@@ -426,6 +432,21 @@ def quebrar_em_blocos_humanizado(texto, limite=350):
             tempos.append(2)
 
     return blocos, tempos
+
+def remover_emojis_repetidos(texto, emojis_ja_usados):
+    emojis_validos = ["😊", "💙"]
+    novos_emojis_usados = []
+
+    for emoji in emojis_validos:
+        ocorrencias = [m.start() for m in re.finditer(re.escape(emoji), texto)]
+        if emoji in emojis_ja_usados and ocorrencias:
+            texto = texto.replace(emoji, "", len(ocorrencias))  # remove todas
+        elif ocorrencias:
+            # deixa só a primeira ocorrência
+            texto = texto.replace(emoji, "", len(ocorrencias) - 1)
+            novos_emojis_usados.append(emoji)
+
+    return texto, novos_emojis_usados
 
 @app.route("/", methods=["GET"])
 def home():
@@ -536,18 +557,27 @@ def processar_mensagem(telefone):
         etapa = "solicitou_valor"
 
     prompt = [{"role": "system", "content": BASE_PROMPT}]
-    contexto = obter_contexto(telefone)
+    contexto, emojis_ja_usados = obter_contexto(telefone)
     if contexto:
         prompt.append({"role": "user", "content": f"Histórico da conversa:\n{contexto}"})
-    prompt.append({
-    "role": "user",
-    "content": f"""Nova mensagem do cliente:
+    else:
+        emojis_ja_usados = []
+
+    if etapa == "solicitou_valor":
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+IMPORTANTE: Antes de apresentar qualquer preço, valide com empatia o que a pessoa sente e reforce a importância de aliviar essa dor com segurança.
+
+Depois disso, apresente os kits com no máximo 3 frases curtas por bloco (até 350 caracteres cada), separadas por **duas quebras de linha (`\\n\\n`)**, de forma leve e consultiva."""})
+    else:
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
 {mensagem_completa}
 
 IMPORTANTE: Estruture sua resposta em **blocos de até 3 frases curtas**, com no máximo 350 caracteres por bloco. Separe os blocos com **duas quebras de linha (`\\n\\n`)**.
 
-Assim consigo entregar sua resposta no WhatsApp de forma mais natural, simulando uma conversa real."""
-})
+Assim consigo entregar sua resposta no WhatsApp de forma mais natural, simulando uma conversa real."""})
+
     completion = client.chat.completions.create(
         model="gpt-4o",
         messages=prompt,
@@ -556,6 +586,7 @@ Assim consigo entregar sua resposta no WhatsApp de forma mais natural, simulando
     )
     resposta = completion.choices[0].message.content.strip()
     print(f"🤖 GPT: {resposta}")
+    resposta, novos_emojis = remover_emojis_repetidos(resposta, emojis_ja_usados)
 
     resposta_normalizada = re.sub(r'(\\n|\\r|\\r\\n|\r\n|\r|\n)', '\n', resposta)
     blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, limite=350)
