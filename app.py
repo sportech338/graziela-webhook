@@ -16,8 +16,7 @@ import re
 app = Flask(__name__)
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-BASE_PROMPT = """
-👩‍🎼 IDENTIDADE
+BASE_PROMPT = """👩‍🎼 IDENTIDADE
 Você é Graziela, consultora estratégica da Sportech.
 Seu papel não é vender um produto. É ajudar pessoas a retomarem sua qualidade de vida com consciência, empatia e clareza.
 
@@ -253,8 +252,7 @@ Produto:"O Flexlive é um adesivo com ingredientes naturais (mentol, cânfora, g
 💖 FINALIDADE
 Graziela não vende produto. Ela transforma realidades.Ela escuta, entende, recomenda e conduz com intenção.Cada conversa é uma chance de devolver mobilidade e bem-estar.A venda é a consequência. A transformação é o objetivo.
 
-🌟 Lembre-se: cada conversa pode ser a virada de chave para alguém voltar a andar, a trabalhar ou simplesmente viver com mais dignidade. Conduza com o coração, a clareza e a presença que a situação merece.
-"""
+🌟 Lembre-se: cada conversa pode ser a virada de chave para alguém voltar a andar, a trabalhar ou simplesmente viver com mais dignidade. Conduza com o coração, a clareza e a presença que a situação merece."""
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 SPREADSHEET_NAME = "Histórico de conversas | Graziela"
 
@@ -390,9 +388,11 @@ def transcrever_audio(blob):
     except:
         return None
 
-def quebrar_em_blocos(texto, limite=400):
+def quebrar_em_blocos_humanizado(texto, limite=400):
     blocos = []
+    tempos = []
     paragrafo = ""
+
     for trecho in re.split(r'(?<=[.!?]) +|\n+', texto):
         if len(paragrafo) + len(trecho) + 1 <= limite:
             paragrafo += (" " if paragrafo else "") + trecho
@@ -402,7 +402,18 @@ def quebrar_em_blocos(texto, limite=400):
             paragrafo = trecho
     if paragrafo:
         blocos.append(paragrafo.strip())
-    return blocos
+
+    # Definindo os tempos de espera
+    for i, bloco in enumerate(blocos):
+        if i == 0:
+            tempos.append(15)
+        elif len(bloco) > 250:
+            tempos.append(6)
+        elif len(bloco) > 100:
+            tempos.append(4)
+        else:
+            tempos.append(2)
+    return blocos, tempos
 
 @app.route("/", methods=["GET"])
 def home():
@@ -528,7 +539,7 @@ def processar_mensagem(telefone):
     print(f"🤖 GPT: {resposta}")
 
     resposta_normalizada = resposta.replace("\r\n", "\n")
-    blocos = quebrar_em_blocos(resposta_normalizada, limite=400)
+    blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, limite=400)
     resposta_compacta = "\n\n".join(blocos)
 
     if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
@@ -540,7 +551,7 @@ def processar_mensagem(telefone):
         "Content-Type": "application/json"
     }
 
-    for i, bloco in enumerate(blocos):
+    for i, (bloco, delay) in enumerate(zip(blocos, tempos)):
         payload = {
             "messaging_product": "whatsapp",
             "to": telefone,
@@ -548,7 +559,7 @@ def processar_mensagem(telefone):
         }
         response = requests.post(whatsapp_url, headers=headers, json=payload)
         print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {response.status_code} | {response.text}")
-        time.sleep(1 if len(bloco) < 60 else 2 if len(bloco) < 150 else 3)
+        time.sleep(delay)
 
     registrar_no_sheets(telefone, mensagem_completa, resposta_compacta)
     temp_ref.delete()
