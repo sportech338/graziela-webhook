@@ -388,22 +388,33 @@ def transcrever_audio(blob):
     except:
         return None
 
-def quebrar_em_blocos_humanizado(texto, limite=400):
+def quebrar_em_blocos_humanizado(texto, limite=350):
     blocos = []
     tempos = []
-    paragrafo = ""
 
-    for trecho in re.split(r'(?<=[.!?]) +|\n+', texto):
-        if len(paragrafo) + len(trecho) + 1 <= limite:
-            paragrafo += (" " if paragrafo else "") + trecho
+    # Respeita blocos separados por \n\n (sugestão vinda do próprio GPT)
+    for trecho in texto.split("\n\n"):
+        trecho = trecho.strip()
+        if not trecho:
+            continue
+
+        # Se o bloco já está dentro do limite, adiciona direto
+        if len(trecho) <= limite:
+            blocos.append(trecho)
         else:
+            # Caso ultrapasse, faz uma quebra mais inteligente em frases
+            partes = re.split(r'(?<=[.!?]) +', trecho)
+            paragrafo = ""
+            for parte in partes:
+                if len(paragrafo) + len(parte) + 1 <= limite:
+                    paragrafo += (" " if paragrafo else "") + parte
+                else:
+                    blocos.append(paragrafo.strip())
+                    paragrafo = parte
             if paragrafo:
                 blocos.append(paragrafo.strip())
-            paragrafo = trecho
-    if paragrafo:
-        blocos.append(paragrafo.strip())
 
-    # Definindo os tempos de espera
+    # Definindo os tempos de espera entre blocos
     for i, bloco in enumerate(blocos):
         if i == 0:
             tempos.append(15)
@@ -413,6 +424,7 @@ def quebrar_em_blocos_humanizado(texto, limite=400):
             tempos.append(4)
         else:
             tempos.append(2)
+
     return blocos, tempos
 
 @app.route("/", methods=["GET"])
@@ -527,8 +539,15 @@ def processar_mensagem(telefone):
     contexto = obter_contexto(telefone)
     if contexto:
         prompt.append({"role": "user", "content": f"Histórico da conversa:\n{contexto}"})
-    prompt.append({"role": "user", "content": f"Nova mensagem do cliente:\n{mensagem_completa}"})
+    prompt.append({
+    "role": "user",
+    "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
 
+IMPORTANTE: Estruture sua resposta em **blocos de até 3 frases curtas**, com no máximo 350 caracteres por bloco. Separe os blocos com **duas quebras de linha (`\\n\\n`)**.
+
+Assim consigo entregar sua resposta no WhatsApp de forma mais natural, simulando uma conversa real."""
+})
     completion = client.chat.completions.create(
         model="gpt-4o",
         messages=prompt,
@@ -539,7 +558,7 @@ def processar_mensagem(telefone):
     print(f"🤖 GPT: {resposta}")
 
     resposta_normalizada = re.sub(r'(\\n|\\r|\\r\\n|\r\n|\r|\n)', '\n', resposta)
-    blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, limite=400)
+    blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, limite=350)
     resposta_compacta = "\n\n".join(blocos)
 
     if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
@@ -560,6 +579,9 @@ def processar_mensagem(telefone):
         response = requests.post(whatsapp_url, headers=headers, json=payload)
         print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {response.status_code} | {response.text}")
         time.sleep(delay)
+
+    if response.status_code != 200:
+        print(f"❌ Erro ao enviar bloco {i+1}: {response.text}")
 
     # ✅ Estas linhas precisam estar dentro da função, indentadas
     registrar_no_sheets(telefone, mensagem_completa, resposta_compacta)
