@@ -9,6 +9,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from google.cloud import firestore
 import time
+from collections import defaultdict
 
 app = Flask(__name__)
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
@@ -288,7 +289,7 @@ def registrar_no_sheets(telefone, mensagem, resposta):
         print(f"❌ Erro ao registrar no Google Sheets: {e}")
 
 
-def salvar_no_firestore(telefone, mensagem, resposta, msg_id):
+def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
     try:
         doc_ref = firestore_client.collection("conversas").document(telefone)
         doc = doc_ref.get()
@@ -314,6 +315,7 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id):
 
         doc_ref.set({
             "telefone": telefone,
+            "etapa": etapa,
             "ultima_interacao": agora,
             "mensagens": mensagens,
             "resumo": resumo,
@@ -414,24 +416,58 @@ def webhook():
             print("⚠️ Nenhuma mensagem recebida.")
             return "ok", 200
 
-        mensagens_agrupadas = []
+        mensagens_por_remetente = defaultdict(list)
         telefone = None
         msg_id = None
 
         for msg in mensagens:
+            if "from" not in msg:
+                continue
             telefone = msg.get("from")
             msg_id = msg.get("id")
+            timestamp = datetime.utcfromtimestamp(int(msg.get("timestamp", time.time())))
+
             if msg.get("type") == "text":
-                mensagens_agrupadas.append(msg["text"]["body"])
+                mensagens_por_remetente[telefone].append((timestamp, msg["text"]["body"]))
             elif msg.get("type") == "audio":
                 print(f"🎧 Áudio recebido: {msg['audio']['id']}")
                 blob = baixar_audio_do_meta(msg["audio"]["id"])
                 transcricao = transcrever_audio(blob) if blob else None
                 if transcricao:
-                    mensagens_agrupadas.append(transcricao)
+                    mensagens_por_remetente[telefone].append((timestamp, transcricao))
+
+        mensagens_agrupadas = []
+        if telefone in mensagens_por_remetente:
+            agrupadas = []
+            sorted_msgs = sorted(mensagens_por_remetente[telefone], key=lambda x: x[0])
+            anterior = sorted_msgs[0][0]
+            bloco = [sorted_msgs[0][1]]
+
+            for ts, txt in sorted_msgs[1:]:
+                if (ts - anterior).total_seconds() <= 10:
+                    bloco.append(txt)
+                else:
+                    mensagens_agrupadas.append(" ".join(bloco))
+                    bloco = [txt]
+                anterior = ts
+
+            if bloco:
+                mensagens_agrupadas.append(" ".join(bloco))
 
         mensagem = "\n".join(mensagens_agrupadas).strip()
         resposta = None
+
+        # 👇 NOVO BLOCO: lógica de etapa com base na mensagem
+        etapa = "inicio"
+        mensagem_lower = mensagem.lower()
+        if any(p in mensagem_lower for p in ["paguei", "tá pago", "acabei de pagar", "enviei o comprovante", "segue o comprovante", "já fiz o pagamento", "já paguei", "comprovante"]):
+           etapa = "pagamento_realizado"
+        elif any(p in mensagem_lower for p in ["pix", "transferência", "chave pix", "como pagar", "me passa os dados", "me passa a chave", "quero pagar", "vou pagar agora"]):
+           etapa = "aguardando_pagamento"
+        elif any(p in mensagem_lower for p in ["nome completo", "cpf", "endereço", "cep", "telefone", "e-mail", "email"]):
+           etapa = "coletando_dados"
+        elif any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "custa quanto", "qual o valor", "tem desconto", "me passa o preço"]):
+           etapa = "solicitou_valor"
 
         if not mensagem:
             resposta = "Consegue me mandar por texto? Fico no aguardo 💬"
@@ -454,7 +490,7 @@ def webhook():
             if not resposta:
                 print("⚠️ Resposta GPT veio vazia. Ignorando envio.")
                 return "ok", 200
-            if not salvar_no_firestore(telefone, mensagem, resposta, msg_id):
+            if not salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
                 return "ok", 200
 
         if resposta:
@@ -487,10 +523,23 @@ def webhook():
 
         return "ok", 200
 
+@app.route("/filtrar-etapa/<etapa>", methods=["GET"])
+def filtrar_por_etapa(etapa):
+    try:
+        resultados = []
+        docs = firestore_client.collection("conversas").where("etapa", "==", etapa).stream()
+        for doc in docs:
+            data = doc.to_dict()
+            resultados.append({
+                "telefone": data.get("telefone"),
+                "ultima_interacao": data.get("ultima_interacao"),
+                "etapa": data.get("etapa"),
+                "resumo": data.get("resumo", "")
+            })
+        return make_response(json.dumps(resultados, indent=2, ensure_ascii=False), 200)
     except Exception as e:
-        print(f"❌ Erro no webhook: {e}")
+        print(f"❌ Erro ao filtrar etapa: {e}")
         return make_response("Erro interno", 500)
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 3000)))
