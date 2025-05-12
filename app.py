@@ -454,7 +454,10 @@ def webhook():
                 temp_ref.set({"pendentes": pendentes})
                 print("⏳ Mensagem adicionada à fila temporária.")
 
-                threading.Thread(target=processar_mensagem, args=(telefone,)).start()
+                status_doc = firestore_client.collection("status_threads").document(telefone)
+                if not status_doc.get().exists:
+                    status_doc.set({"em_execucao": True})
+                    threading.Thread(target=processar_mensagem, args=(telefone,)).start()
 
             except Exception as e:
                 print(f"❌ Erro ao adicionar à fila temporária: {e}")
@@ -534,6 +537,8 @@ def processar_mensagem(telefone):
     registrar_no_sheets(telefone, mensagem_completa, resposta_compacta)
     temp_ref.delete()
     print("🧹 Fila temporária limpa.")
+    firestore_client.collection("status_threads").document(telefone).delete()
+    print("🔁 Thread finalizada e status limpo.")
 
 @app.route("/filtrar-etapa/<etapa>", methods=["GET"])
 def filtrar_por_etapa(etapa):
