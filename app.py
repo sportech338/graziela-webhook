@@ -523,6 +523,11 @@ def webhook():
 
         return "ok", 200
 
+    except Exception as e:
+        print(f"❌ Erro geral no webhook: {e}")
+        return make_response("Erro interno", 500)
+
+
 @app.route("/filtrar-etapa/<etapa>", methods=["GET"])
 def filtrar_por_etapa(etapa):
     try:
@@ -540,6 +545,7 @@ def filtrar_por_etapa(etapa):
     except Exception as e:
         print(f"❌ Erro ao filtrar etapa: {e}")
         return make_response("Erro interno", 500)
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 3000)))
