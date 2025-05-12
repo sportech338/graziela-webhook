@@ -561,10 +561,11 @@ def processar_mensagem(telefone):
         print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {response.status_code} | {response.text}")
         time.sleep(delay)
 
+    # ✅ Estas linhas precisam estar dentro da função, indentadas
     registrar_no_sheets(telefone, mensagem_completa, resposta_compacta)
     temp_ref.delete()
-    print("🧹 Fila temporária limpa.")
     firestore_client.collection("status_threads").document(telefone).delete()
+    print("🧹 Fila temporária limpa.")
     print("🔁 Thread finalizada e status limpo.")
 
 @app.route("/filtrar-etapa/<etapa>", methods=["GET"])
