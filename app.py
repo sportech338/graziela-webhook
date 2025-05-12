@@ -388,18 +388,6 @@ def transcrever_audio(blob):
     except:
         return None
 
-def processar_mensagem(telefone, msg_id):
-    time.sleep(15)
-    temp_ref = firestore_client.collection("conversas_temp").document(telefone)
-    temp_doc = temp_ref.get()
-    if not temp_doc.exists:
-        return
-    dados = temp_doc.to_dict()
-    mensagens = dados.get("pendentes", [])
-    if not mensagens:
-        return
-
-
 @app.route("/", methods=["GET"])
 def home():
     return "Servidor da Graziela com memória ativa 💬🧠"
@@ -452,98 +440,99 @@ def webhook():
             nova_mensagem = " ".join([txt for _, txt in sorted_msgs]).strip()
 
             try:
-                doc_ref = firestore_client.collection("conversas").document(telefone)
-                doc = doc_ref.get()
-                historico = doc.to_dict() if doc.exists else {}
-                mensagens_anteriores = historico.get("mensagens", [])
+                temp_ref = firestore_client.collection("conversas_temp").document(telefone)
+                temp_doc = temp_ref.get()
+                pendentes = temp_doc.to_dict().get("pendentes", []) if temp_doc.exists else []
 
-                if mensagens_anteriores and mensagens_anteriores[-1]["quem"] == "cliente":
-                    ultima_msg_cliente = mensagens_anteriores[-1]["texto"]
-                    mensagem = f"{ultima_msg_cliente} {nova_mensagem}".strip()
-                    print("🔁 Agrupando com mensagem anterior do cliente.")
-                else:
-                    mensagem = nova_mensagem
+                pendentes.append({
+                    "texto": nova_mensagem,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "msg_id": msg_id
+                })
+
+                temp_ref.set({"pendentes": pendentes})
+                print("⏳ Mensagem adicionada à fila temporária.")
+
+                threading.Thread(target=processar_mensagem, args=(telefone,)).start()
+
             except Exception as e:
-                print(f"❌ Erro ao verificar última mensagem no Firestore: {e}")
-                mensagem = nova_mensagem
+                print(f"❌ Erro ao adicionar à fila temporária: {e}")
 
-            print(f"🧩 Mensagem agrupada: {mensagem}")
-
-            # Espera 12 segundos para verificar se o cliente continuará mandando mensagem
-            print("⏳ Esperando 12 segundos para verificar se virão mais mensagens...")
-            time.sleep(12)
-
-        # 👇 NOVO BLOCO: lógica de etapa com base na mensagem
-        etapa = "inicio"
-        mensagem_lower = mensagem.lower()
-        if any(p in mensagem_lower for p in ["paguei", "tá pago", "acabei de pagar", "enviei o comprovante", "segue o comprovante", "já fiz o pagamento", "já paguei", "comprovante"]):
-            etapa = "pagamento_realizado"
-        elif any(p in mensagem_lower for p in ["pix", "transferência", "chave pix", "como pagar", "me passa os dados", "me passa a chave", "quero pagar", "vou pagar agora"]):
-            etapa = "aguardando_pagamento"
-        elif any(p in mensagem_lower for p in ["nome completo", "cpf", "endereço", "cep", "telefone", "e-mail", "email"]):
-            etapa = "coletando_dados"
-        elif any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "custa quanto", "qual o valor", "tem desconto", "me passa o preço"]):
-            etapa = "solicitou_valor"
-
-        if not mensagem:
-            resposta = "Consegue me mandar por texto? Fico no aguardo 💬"
-        else:
-            prompt = [{"role": "system", "content": BASE_PROMPT}]
-            contexto = obter_contexto(telefone)
-            if contexto:
-                prompt.append({"role": "user", "content": f"Histórico da conversa:\n{contexto}"})
-            prompt.append({"role": "user", "content": f"Nova mensagem do cliente:\n{mensagem}"})
-
-            completion = client.chat.completions.create(
-                model="gpt-4o",
-                messages=prompt,
-                temperature=0.5,
-                max_tokens=300
-            )
-            resposta = completion.choices[0].message.content.strip()
-            print(f"🤖 GPT: {resposta}")
-
-            if not resposta:
-                print("⚠️ Resposta GPT veio vazia. Ignorando envio.")
-                return "ok", 200
-
-            blocos = [bloco.strip() for bloco in resposta.split("\n\n") if bloco.strip()]
-            resposta_compacta = " ".join(blocos)
-
-            if not salvar_no_firestore(telefone, mensagem, resposta_compacta, msg_id, etapa):
-                return "ok", 200
-
-        if resposta:
-            whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
-            headers = {
-                "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN']}",
-                "Content-Type": "application/json"
-            }
-
-            for i, bloco in enumerate(blocos):
-                payload = {
-                    "messaging_product": "whatsapp",
-                    "to": telefone,
-                    "text": {"body": bloco}
-                }
-                response = requests.post(whatsapp_url, headers=headers, json=payload)
-                print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {response.status_code} | {response.text}")
-
-                tamanho = len(bloco)
-                if tamanho < 60:
-                    time.sleep(1)
-                elif tamanho < 150:
-                    time.sleep(2)
-                else:
-                    time.sleep(3)
-
-            registrar_no_sheets(telefone, mensagem, resposta_compacta)
         return "ok", 200
 
     except Exception as e:
         print(f"❌ Erro geral no webhook: {e}")
         return make_response("Erro interno", 500)
 
+def processar_mensagem(telefone):
+    time.sleep(15)
+    temp_ref = firestore_client.collection("conversas_temp").document(telefone)
+    temp_doc = temp_ref.get()
+    if not temp_doc.exists:
+        return
+
+    dados = temp_doc.to_dict()
+    mensagens = dados.get("pendentes", [])
+    if not mensagens:
+        return
+
+    mensagens_ordenadas = sorted(mensagens, key=lambda m: m["timestamp"])
+    mensagem_completa = " ".join([m["texto"] for m in mensagens_ordenadas]).strip()
+    msg_id = mensagens_ordenadas[-1]["msg_id"]
+
+    print(f"🧩 Mensagem completa da fila: {mensagem_completa}")
+
+    etapa = "inicio"
+    mensagem_lower = mensagem_completa.lower()
+    if any(p in mensagem_lower for p in ["paguei", "tá pago", "comprovante", "enviei", "já fiz o pagamento"]):
+        etapa = "pagamento_realizado"
+    elif any(p in mensagem_lower for p in ["pix", "transferência", "como pagar", "chave"]):
+        etapa = "aguardando_pagamento"
+    elif any(p in mensagem_lower for p in ["nome completo", "cpf", "cep", "telefone", "email"]):
+        etapa = "coletando_dados"
+    elif any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "tem desconto"]):
+        etapa = "solicitou_valor"
+
+    prompt = [{"role": "system", "content": BASE_PROMPT}]
+    contexto = obter_contexto(telefone)
+    if contexto:
+        prompt.append({"role": "user", "content": f"Histórico da conversa:\n{contexto}"})
+    prompt.append({"role": "user", "content": f"Nova mensagem do cliente:\n{mensagem_completa}"})
+
+    completion = client.chat.completions.create(
+        model="gpt-4o",
+        messages=prompt,
+        temperature=0.5,
+        max_tokens=300
+    )
+    resposta = completion.choices[0].message.content.strip()
+    print(f"🤖 GPT: {resposta}")
+
+    blocos = [bloco.strip() for bloco in resposta.split("\n\n") if bloco.strip()]
+    resposta_compacta = " ".join(blocos)
+
+    if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
+        return
+
+    whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
+    headers = {
+        "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN']}",
+        "Content-Type": "application/json"
+    }
+
+    for i, bloco in enumerate(blocos):
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": telefone,
+            "text": {"body": bloco}
+        }
+        response = requests.post(whatsapp_url, headers=headers, json=payload)
+        print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {response.status_code} | {response.text}")
+        time.sleep(1 if len(bloco) < 60 else 2 if len(bloco) < 150 else 3)
+
+    registrar_no_sheets(telefone, mensagem_completa, resposta_compacta)
+    temp_ref.delete()
+    print("🧹 Fila temporária limpa.")
 
 @app.route("/filtrar-etapa/<etapa>", methods=["GET"])
 def filtrar_por_etapa(etapa):
