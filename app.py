@@ -458,6 +458,8 @@ def webhook():
             for i, bloco in enumerate(mensagens_agrupadas):
                 print(f"🧩 Bloco {i+1}: {bloco}")
 
+        mensagem = "\n".join(mensagens_agrupadas).strip()  # ✅ Agora está antes
+
         # 👇 NOVO BLOCO: lógica de etapa com base na mensagem
         etapa = "inicio"
         mensagem_lower = mensagem.lower()
