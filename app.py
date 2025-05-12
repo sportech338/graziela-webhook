@@ -454,8 +454,9 @@ def webhook():
             if bloco:
                 mensagens_agrupadas.append(" ".join(bloco))
 
-        mensagem = "\n".join(mensagens_agrupadas).strip()
-        resposta = None
+            # ✅ DEBUG: Exibir blocos agrupados (opcional)
+            for i, bloco in enumerate(mensagens_agrupadas):
+                print(f"🧩 Bloco {i+1}: {bloco}")
 
         # 👇 NOVO BLOCO: lógica de etapa com base na mensagem
         etapa = "inicio"
@@ -490,7 +491,11 @@ def webhook():
             if not resposta:
                 print("⚠️ Resposta GPT veio vazia. Ignorando envio.")
                 return "ok", 200
-            if not salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
+
+            blocos = [bloco.strip() for bloco in resposta.split("\n\n") if bloco.strip()]
+            resposta_compacta = " ".join(blocos)
+
+            if not salvar_no_firestore(telefone, mensagem, resposta_compacta, msg_id, etapa):
                 return "ok", 200
 
         if resposta:
@@ -500,7 +505,6 @@ def webhook():
                 "Content-Type": "application/json"
             }
 
-            blocos = [bloco.strip() for bloco in resposta.split("\n\n") if bloco.strip()]
             for i, bloco in enumerate(blocos):
                 payload = {
                     "messaging_product": "whatsapp",
@@ -518,9 +522,7 @@ def webhook():
                 else:
                     time.sleep(3)
 
-            resposta_compacta = " ".join(blocos)
             registrar_no_sheets(telefone, mensagem, resposta_compacta)
-
         return "ok", 200
 
     except Exception as e:
