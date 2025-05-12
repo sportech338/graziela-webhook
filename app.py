@@ -11,6 +11,7 @@ from google.cloud import firestore
 import time
 from collections import defaultdict
 import threading
+import re
 
 app = Flask(__name__)
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
@@ -389,6 +390,20 @@ def transcrever_audio(blob):
     except:
         return None
 
+def quebrar_em_blocos(texto, limite=400):
+    blocos = []
+    paragrafo = ""
+    for trecho in re.split(r'(?<=[.!?]) +|\n+', texto):
+        if len(paragrafo) + len(trecho) + 1 <= limite:
+            paragrafo += (" " if paragrafo else "") + trecho
+        else:
+            if paragrafo:
+                blocos.append(paragrafo.strip())
+            paragrafo = trecho
+    if paragrafo:
+        blocos.append(paragrafo.strip())
+    return blocos
+
 @app.route("/", methods=["GET"])
 def home():
     return "Servidor da Graziela com memória ativa 💬🧠"
@@ -512,8 +527,9 @@ def processar_mensagem(telefone):
     resposta = completion.choices[0].message.content.strip()
     print(f"🤖 GPT: {resposta}")
 
-    blocos = [bloco.strip() for bloco in resposta.split("\n\n") if bloco.strip()]
-    resposta_compacta = " ".join(blocos)
+    resposta_normalizada = resposta.replace("\r\n", "\n")
+    blocos = quebrar_em_blocos(resposta_normalizada, limite=400)
+    resposta_compacta = "\n\n".join(blocos)
 
     if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
         return
