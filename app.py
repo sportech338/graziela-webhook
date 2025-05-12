@@ -152,32 +152,52 @@ Quando houver interesse direto ou indireto:
 Valide com entusiasmo:
 "Perfeito, [Nome]! Esse kit é um dos mais escolhidos pra esse tipo de dor."
 
-Pergunte a forma de pagamento:
-"Prefere Pix à vista com desconto ou cartão em até 12x?"
-
 Pausa estratégica:
 "Antes de organizarmos o pedido, ficou alguma dúvida que eu possa esclarecer pra te deixar mais segura?"
 
-Se estiver tudo certo, colete os dados em etapas:
+Se estiver tudo certo, colete os dados em etapas curtas:
 
-Nome completo
+✅ 1. Coleta de Dados Pessoais
 
-CPF
+Bloco 1:
+"Perfeito! Vamos garantir seu pedido com segurança."
 
-Telefone com DDD
+Bloco 2:
+"Para começar, vou precisar de alguns dados seus:
 
-E-mail (para envio de rastreio)
+- Nome completo:
+- CPF:
+- Telefone com DDD:"
 
-Endereço completo: CEP, rua, número, complemento, bairro, cidade/estado
+Bloco 3:
+"Apresenta algum e-mail para envio do código de rastreio?"
+
+📍 2. Coleta de Endereço
+(Enviada após o cliente responder os dados pessoais)
+
+Bloco 1:
+"Agora, vamos precisar do seu endereço completo:
+
+- CEP:
+- Endereço completo:
+- Número:
+- Complemento (opcional):"
+
+Bloco 2:
+"Assim que tiver tudo certinho, seguimos com a finalização do pedido."
+
+Pergunte a forma de pagamento:
+"Perfeito! Prefere Pix à vista com desconto ou cartão em até 12x?"
 
 Envio da chave Pix — formato validado (em blocos curtos):
-Mensagem 1:
-"Tudo certinho por aqui. Agora sim, vou te passar a chave Pix (CNPJ) pra gente garantir o seu pedido com agilidade e segurança, tudo bem?"
 
-Mensagem 2:
+Bloco 1:
+"Excelente! Abaixo, vou te passar a chave Pix (CNPJ) pra gente garantir o seu pedido com agilidade e segurança, tudo bem?"
+
+Bloco 2:
 52.940.645/0001-08
 
-Mensagem 3:
+Bloco 3:
 "Assim que fizer o pagamento, me envia o comprovante aqui mesmo. Assim consigo confirmar rapidinho no sistema e seguir com o envio do seu pedido."
 
 🔍 ANTECIPAÇÃO DE OBJEÇÕES
@@ -250,7 +270,7 @@ Benefícios:
 Produto:"O Flexlive é um adesivo com ingredientes naturais (mentol, cânfora, gengibre e absinto), que transportam compostos anti-inflamatórios direto pra área afetada, aliviando a dor, reduzindo o inchaço e recuperando a mobilidade."
 
 💖 FINALIDADE
-Graziela não vende produto. Ela transforma realidades.Ela escuta, entende, recomenda e conduz com intenção.Cada conversa é uma chance de devolver mobilidade e bem-estar.A venda é a consequência. A transformação é o objetivo.
+Graziela não vende produto. Ela transforma realidades.Ela escuta, entende, recomenda e conduz com intenção.Cada conversa é uma chance de devolver mobilidade e bem-estar. A venda é a consequência. A transformação é o objetivo.
 
 🌟 Lembre-se: cada conversa pode ser a virada de chave para alguém voltar a andar, a trabalhar ou simplesmente viver com mais dignidade. Conduza com o coração, a clareza e a presença que a situação merece."""
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -547,6 +567,7 @@ def processar_mensagem(telefone):
 
     etapa = "inicio"
     mensagem_lower = mensagem_completa.lower()
+
     if any(p in mensagem_lower for p in ["paguei", "tá pago", "comprovante", "enviei", "já fiz o pagamento"]):
         etapa = "pagamento_realizado"
     elif any(p in mensagem_lower for p in ["pix", "transferência", "como pagar", "chave"]):
@@ -559,6 +580,13 @@ def processar_mensagem(telefone):
         etapa = "resistencia_financeira"
     elif any(p in mensagem_lower for p in ["anos", "desde pequena", "desde novo", "faz tempo", "há muito tempo", "há anos"]):
         etapa = "dor_cronica"
+    elif (
+        any(p in mensagem_lower for p in [
+            "quero comprar", "vou querer", "quero esse", "quero sim", "sim quero", "sim por favor",
+            "quero o de", "pode ser esse", "pode ser o de", "vou ficar com"
+        ]) and all(x in mensagem_lower for x in ["cep", "rua", "bairro", "cidade", "estado"])
+    ):
+        etapa = "pergunta_forma_pagamento"
 
     prompt = [{"role": "system", "content": BASE_PROMPT}]
     contexto, emojis_ja_usados = obter_contexto(telefone)
@@ -589,8 +617,19 @@ Conduza com frases como:
 - "Se for pra investir em algo, que seja no que pode devolver sua qualidade de vida, né?"
 - "A gente só valoriza quando volta a andar sem dor."
 
-Apenas **ao final**, conduza de forma sutil para apresentar os kits (em até 3 frases curtas por bloco, separadas por duas quebras de linha \\n\\n), com foco em solução leve e consciente.
-"""})
+Apenas **ao final**, conduza de forma sutil para apresentar os kits (em até 3 frases curtas por bloco, separadas por duas quebras de linha \\n\\n), com foco em solução leve e consciente."""})
+
+    elif etapa == "pergunta_forma_pagamento":
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+IMPORTANTE: O cliente já passou os dados e demonstrou que quer finalizar a compra.
+
+Agora, conduza com leveza e segurança:
+
+**\"Prefere Pix à vista com desconto ou cartão em até 12x?\"**
+
+Aguarde a resposta antes de enviar links ou instruções de pagamento."""})
 
     else:
         prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
@@ -600,7 +639,7 @@ IMPORTANTE: Estruture sua resposta em **blocos de até 3 frases curtas**, com no
 
 Assim consigo entregar sua resposta no WhatsApp de forma mais natural, simulando uma conversa real."""})
 
-    completion = client.chat.completions.create(
+completion = client.chat.completions.create(
         model="gpt-4o",
         messages=prompt,
         temperature=0.5,
@@ -613,6 +652,18 @@ Assim consigo entregar sua resposta no WhatsApp de forma mais natural, simulando
     resposta_normalizada = re.sub(r'(\\n|\\r|\\r\\n|\r\n|\r|\n)', '\n', resposta)
     blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, limite=350)
     resposta_compacta = "\n\n".join(blocos)
+
+    # Ajusta o delay inicial com base na etapa
+    etapas_delay = {
+        "coletando_dados": 120,
+        "pagamento_realizado": 25,
+        "aguardando_pagamento": 30,
+        "resistencia_financeira": 20
+    }
+    delay_inicial = etapas_delay.get(etapa, 15)
+
+    if tempos:
+        tempos[0] = delay_inicial
 
     if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
         return
@@ -632,11 +683,9 @@ Assim consigo entregar sua resposta no WhatsApp de forma mais natural, simulando
         response = requests.post(whatsapp_url, headers=headers, json=payload)
         print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {response.status_code} | {response.text}")
         time.sleep(delay)
+        if response.status_code != 200:
+            print(f"❌ Erro ao enviar bloco {i+1}: {response.text}")
 
-    if response.status_code != 200:
-        print(f"❌ Erro ao enviar bloco {i+1}: {response.text}")
-
-    # ✅ Estas linhas precisam estar dentro da função, indentadas
     registrar_no_sheets(telefone, mensagem_completa, resposta_compacta)
     temp_ref.delete()
     firestore_client.collection("status_threads").document(telefone).delete()
