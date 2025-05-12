@@ -555,6 +555,10 @@ def processar_mensagem(telefone):
         etapa = "coletando_dados"
     elif any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "tem desconto"]):
         etapa = "solicitou_valor"
+    elif any(p in mensagem_lower for p in ["caro", "muito caro", "tá puxado", "sem grana", "não tenho dinheiro", "tá difícil", "no momento não consigo"]):
+        etapa = "resistencia_financeira"
+    elif any(p in mensagem_lower for p in ["anos", "desde pequena", "desde novo", "faz tempo", "há muito tempo", "há anos"]):
+        etapa = "dor_cronica"
 
     prompt = [{"role": "system", "content": BASE_PROMPT}]
     contexto, emojis_ja_usados = obter_contexto(telefone)
@@ -570,6 +574,24 @@ def processar_mensagem(telefone):
 IMPORTANTE: Antes de apresentar qualquer preço, valide com empatia o que a pessoa sente e reforce a importância de aliviar essa dor com segurança.
 
 Depois disso, apresente os kits com no máximo 3 frases curtas por bloco (até 350 caracteres cada), separadas por **duas quebras de linha (`\\n\\n`)**, de forma leve e consultiva."""})
+
+    elif etapa in ["resistencia_financeira", "dor_cronica"]:
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+IMPORTANTE:
+Comece acolhendo com força emocional e conexão genuína. Demonstre escuta ativa e gere segurança com empatia.  
+**Não apresente preços diretamente ainda.**  
+Primeiro, crie valor e reforce como o Flexlive pode aliviar essa dor de forma leve e segura.
+
+Conduza com frases como:
+- "Nossa, entendo demais. Imagino o quanto deve estar pesado conviver com isso há tanto tempo."
+- "Se for pra investir em algo, que seja no que pode devolver sua qualidade de vida, né?"
+- "A gente só valoriza quando volta a andar sem dor."
+
+Apenas **ao final**, conduza de forma sutil para apresentar os kits (em até 3 frases curtas por bloco, separadas por duas quebras de linha \\n\\n), com foco em solução leve e consciente.
+"""})
+
     else:
         prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
 {mensagem_completa}
