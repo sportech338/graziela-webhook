@@ -52,3 +52,103 @@ Blocos curtos (máx. 350 caracteres) separados por duas quebras de linha."""}
             resposta, novos_emojis = remover_emojis_repetidos(nova_resposta, emojis_ja_usados)
 
     return resposta, novos_emojis
+
+def montar_prompt_por_etapa(etapa, mensagem_cliente, contexto):
+    prompt = [
+        {
+            "role": "system",
+            "content": "Você é Graziela, consultora estratégica da Sportech. Sua missão é conduzir com empatia, inteligência emocional e segurança cada conversa. Nunca use frases passivas. Conclua sempre com uma pergunta clara para manter o fluxo."
+        }
+    ]
+
+    if contexto:
+        prompt.append({
+            "role": "user",
+            "content": f"Histórico da conversa até aqui:\n{contexto}"
+        })
+
+    mensagem_base = f"Nova mensagem do cliente:\n{mensagem_cliente}"
+
+    if etapa == "solicitou_valor":
+        prompt.append({
+            "role": "user",
+            "content": mensagem_base + """
+
+IMPORTANTE: Antes de apresentar os valores, acolha com empatia. Só depois conduza para os kits (120 → 60 → 30 → 20). Destaque o de 30 como mais vendido. Finalize com pergunta consultiva clara.
+Responda em blocos curtos (máx. 350 caracteres), separados por duas quebras de linha (\\n\\n)."""
+        })
+
+    elif etapa == "coletando_dados_pessoais":
+        prompt.append({
+            "role": "user",
+            "content": mensagem_base + """
+
+O cliente quer finalizar. Solicite dados pessoais com leveza:
+
+Bloco 1:
+"Perfeito! Vamos garantir seu pedido com segurança."
+
+Bloco 2:
+"Preciso de alguns dados seus:
+
+- Nome completo:
+- CPF:
+- Telefone com DDD:"
+
+Bloco 3:
+"Tem algum e-mail pra envio do código de rastreio?"
+"""
+        })
+
+    elif etapa == "coletando_endereco":
+        prompt.append({
+            "role": "user",
+            "content": mensagem_base + """
+
+O cliente já passou os dados. Agora, solicite o endereço:
+
+"Agora preciso do seu endereço completo:
+
+- CEP:
+- Endereço:
+- Número:
+- Complemento (opcional):"
+
+"Assim que estiver certinho, seguimos pra finalização."
+"""
+        })
+
+    elif etapa == "resistencia_financeira":
+        prompt.append({
+            "role": "user",
+            "content": mensagem_base + """
+
+Acolha com empatia. Mostre valor antes de apresentar qualquer preço.
+
+- \"Imagino o quanto deve estar pesado conviver com isso.\"
+- \"Se for pra investir em algo, que seja no que pode devolver sua qualidade de vida, né?\"
+
+Finalize com uma pergunta clara. Blocos curtos, tom consultivo."""
+        })
+
+    elif etapa == "pergunta_forma_pagamento":
+        prompt.append({
+            "role": "user",
+            "content": mensagem_base + """
+
+Cliente pronto pra fechar. Pergunte direto:
+
+\"Prefere Pix à vista com desconto ou cartão em até 12x?\"
+
+Nada de frases abertas. Aguarde a escolha antes de mandar link."""
+        })
+
+    else:
+        prompt.append({
+            "role": "user",
+            "content": mensagem_base + """
+
+Responda com empatia e leveza. Use blocos curtos (máx. 350 caracteres) e termine com uma pergunta clara que mantenha o fluxo. Nunca use frases passivas como 'qualquer coisa, estou por aqui'."""
+        })
+
+    return prompt
