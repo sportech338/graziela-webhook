@@ -53,11 +53,11 @@ Blocos curtos (máx. 350 caracteres) separados por duas quebras de linha."""}
 
     return resposta, novos_emojis
 
-def montar_prompt_por_etapa(etapa, mensagem_cliente, contexto):
+def montar_prompt_por_etapa(etapa, mensagem_cliente, contexto, base_prompt):
     prompt = [
         {
             "role": "system",
-            "content": "Você é Graziela, consultora estratégica da Sportech. Sua missão é conduzir com empatia, inteligência emocional e segurança cada conversa. Nunca use frases passivas. Conclua sempre com uma pergunta clara para manter o fluxo."
+            "content": base_prompt
         }
     ]
 
