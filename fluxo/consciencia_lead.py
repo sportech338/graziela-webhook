@@ -52,7 +52,7 @@ EVASIVAS = {
 }
 
 
-def identificar_objecao(mensagem: str) -> Optional[str]:
+def identificar_consciencia_lead(mensagem: str) -> Optional[str]:
     msg = mensagem.lower()
 
     for tipo, padroes in OBJECOES_ATIVAS.items():
