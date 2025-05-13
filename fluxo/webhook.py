@@ -2,7 +2,7 @@ from flask import Blueprint, request, make_response
 import os
 import json
 
-from servicos.processador import processar_mensagem_recebida
+from fluxo.servicos.processador import processar_mensagem_recebida
 from fluxo.servicos.firestore import salvar_no_firestore, obter_contexto, firestore_client
 
 webhook_bp = Blueprint("webhook", __name__)
