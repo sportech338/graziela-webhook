@@ -1,8 +1,10 @@
-from google.cloud import firestore
+import os
 from datetime import datetime
-from fluxo.servicos.resumo import resumir_historico
+from google.cloud import firestore
+from fluxo.servicos.openai_client import resumir_historico
 
-firestore_client = firestore.Client.from_service_account_json("credentials.json")
+CREDENTIALS_PATH = "credentials.json"
+firestore_client = firestore.Client.from_service_account_json(CREDENTIALS_PATH)
 
 def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
     try:
@@ -23,7 +25,8 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
 
         if len(mensagens) > 40:
             texto_completo = "\n".join([
-                f"{'Cliente' if m['quem']=='cliente' else 'Graziela'}: {m['texto']}" for m in mensagens
+                f"{'Cliente' if m['quem']=='cliente' else 'Graziela'}: {m['texto']}"
+                for m in mensagens
             ])
             novo_resumo = resumir_historico(texto_completo)
             resumo = f"{resumo}\n{novo_resumo}".strip()
@@ -46,7 +49,6 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
         print(f"❌ Erro ao salvar no Firestore: {e}")
         return False
 
-
 def obter_contexto(telefone):
     try:
         doc = firestore_client.collection("conversas").document(telefone).get()
@@ -57,10 +59,15 @@ def obter_contexto(telefone):
             linhas = [f"{'Cliente' if m['quem']=='cliente' else 'Graziela'}: {m['texto']}" for m in mensagens]
             contexto = f"{resumo}\n" + "\n".join(linhas) if resumo else "\n".join(linhas)
 
-            texto_respostas = " ".join([m["texto"] for m in mensagens if m["quem"] == "graziela"])
+            texto_respostas = " ".join([
+                m["texto"] for m in mensagens if m["quem"] == "graziela"
+            ])
             emojis_ja_usados = [e for e in ["😊", "💙"] if e in texto_respostas]
 
             return contexto, emojis_ja_usados
     except Exception as e:
         print(f"❌ Erro ao obter contexto: {e}")
     return "", []
+
+def firestore_client_instance():
+    return firestore_client
