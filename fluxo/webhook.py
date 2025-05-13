@@ -1,6 +1,9 @@
 from flask import Blueprint, request, make_response
-from servicos.processador import processar_mensagem_recebida
 import os
+import json
+
+from servicos.processador import processar_mensagem_recebida
+from fluxo.servicos.firestore import salvar_no_firestore, obter_contexto, firestore_client
 
 webhook_bp = Blueprint("webhook", __name__)
 
@@ -25,8 +28,6 @@ def webhook():
 
 @webhook_bp.route("/filtrar-etapa/<etapa>", methods=["GET"])
 def filtrar_por_etapa(etapa):
-    from servicos.firestore import firestore_client
-    import json
     try:
         resultados = []
         docs = firestore_client.collection("conversas").where("etapa", "==", etapa).stream()
