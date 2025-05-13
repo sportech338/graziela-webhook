@@ -10,6 +10,8 @@ from fluxo.servicos.sheets import registrar_no_sheets
 from fluxo.servicos.openai_client import gerar_resposta
 from fluxo.respostas.gerador_respostas import gerar_resposta_formatada, montar_prompt_por_etapa
 from fluxo.base_prompt import BASE_PROMPT
+from fluxo.etapas_jornada import identificar_etapa_jornada
+from fluxo.objecoes import identificar_objecao
 
 ETAPAS_DELAY = {
     "inicio": 15,
@@ -19,28 +21,6 @@ ETAPAS_DELAY = {
     "aguardando_pagamento": 30,
     "resistencia_financeira": 20
 }
-
-
-def identificar_etapa(mensagem):
-    msg = mensagem.lower()
-    if any(p in msg for p in ["paguei", "tá pago", "comprovante"]):
-        return "pagamento_realizado"
-    if any(p in msg for p in ["pix", "transferência", "como pagar"]):
-        return "aguardando_pagamento"
-    if all(p in msg for p in ["nome", "cpf", "telefone"]) and any(p in msg for p in ["email", "e-mail"]):
-        return "coletando_dados_pessoais"
-    if all(p in msg for p in ["cep", "endereço", "número", "bairro", "cidade"]):
-        return "coletando_endereco"
-    if any(p in msg for p in ["valor", "preço", "quanto custa"]):
-        return "solicitou_valor"
-    if any(p in msg for p in ["caro", "sem grana", "difícil"]):
-        return "resistencia_financeira"
-    if any(p in msg for p in ["desde", "há anos", "faz tempo"]):
-        return "dor_cronica"
-    if any(p in msg for p in ["quero comprar", "vou querer", "quero o de"]):
-        return "pergunta_forma_pagamento"
-    return "inicio"
-
 
 def quebrar_em_blocos_humanizado(texto, limite=350):
     blocos, tempos = [], []
@@ -104,9 +84,10 @@ def processar_mensagem_da_fila(telefone):
     mensagem_completa = " ".join([m["texto"] for m in mensagens_ordenadas]).strip()
     msg_id = mensagens_ordenadas[-1]["msg_id"]
 
-    etapa = identificar_etapa(mensagem_completa)
+    etapa = identificar_etapa_jornada(mensagem_completa) or "abordagem_inicial"
+    objecao = identificar_objecao(mensagem_completa)
     contexto, emojis_ja_usados = obter_contexto(telefone)
-    prompt = montar_prompt_por_etapa(etapa, mensagem_completa, contexto, BASE_PROMPT)
+    prompt = montar_prompt_por_etapa(etapa, mensagem_completa, contexto, BASE_PROMPT, objecao=objecao)
 
     resposta, novos_emojis = gerar_resposta_formatada(prompt, emojis_ja_usados)
     if not resposta:
