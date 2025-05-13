@@ -21,3 +21,7 @@ ETAPAS_JORNADA = [
     "reengajamento",
     "recuperacao_fluxo"
 ]
+
+# Opcional: para validação rápida
+def etapa_valida(etapa: str) -> bool:
+    return etapa in ETAPAS_JORNADA
