@@ -12,7 +12,7 @@ if not os.path.exists(CREDENTIALS_PATH):
 firestore_client = firestore.Client.from_service_account_json(CREDENTIALS_PATH)
 
 
-def salvar_no_firestore(telefone, mensagem_cliente, resposta_ia, msg_id, etapa_jornada, resistencia_cliente=None):
+def salvar_no_firestore(telefone, mensagem_cliente, resposta_ia, msg_id, etapa_jornada):
     try:
         doc_ref = firestore_client.collection("conversas").document(telefone)
         doc = doc_ref.get()
@@ -40,7 +40,6 @@ def salvar_no_firestore(telefone, mensagem_cliente, resposta_ia, msg_id, etapa_j
         doc_ref.set({
             "telefone": telefone,
             "etapas_jornada": etapa_jornada,
-            "resistencia_cliente": resistencia_cliente,
             "ultima_interacao": agora,
             "mensagens": mensagens,
             "resumo": resumo,
