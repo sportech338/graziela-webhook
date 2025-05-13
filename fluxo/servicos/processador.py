@@ -98,7 +98,7 @@ def processar_mensagem_da_fila(telefone):
     blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada)
     resposta_compacta = "\n\n".join(blocos)
 
-    if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa_jornada):
+    if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa, objecao):
         return
 
     whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
