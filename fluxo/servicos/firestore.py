@@ -52,7 +52,7 @@ def salvar_no_firestore(telefone, mensagem_cliente, resposta_ia, msg_id, etapa_j
 
         dados_salvos = {
             "telefone": telefone,
-            "etapas_jornada": etapa_jornada,
+            "etapa": etapa_jornada,
             "ultima_interacao": agora,
             "mensagens": mensagens,
             "resumo": resumo,
