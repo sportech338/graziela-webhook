@@ -1,0 +1,23 @@
+ETAPAS_JORNADA = [
+    "inicio",
+    "conexao_profunda",
+    "entendimento_dor",
+    "antecipou_objeção",
+    "prova_social",
+    "apresentou_valor",
+    "reforco_beneficio_personalizado",
+    "validou_oferta",
+    "comparou_kits",
+    "verificou_duvidas",
+    "recomendacao_final_fechamento",
+    "confirmacao_resumo_pedido",
+    "coleta_dados_pessoais",
+    "coleta_endereco",
+    "forma_pagamento",
+    "aguardando_pagamento",
+    "pagamento_realizado",
+    "pos_venda",
+    "encerramento",
+    "reengajamento",
+    "recuperacao_fluxo"
+]
