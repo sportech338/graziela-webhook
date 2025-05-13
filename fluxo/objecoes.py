@@ -1,52 +1,52 @@
 from typing import Optional
 
 OBJECOES_ATIVAS = {
-    "objecao_valor": [
+    "Preço": [
         "tá caro", "muito caro", "não tenho dinheiro", "sem grana"
     ],
-    "objecao_confianca": [
+    "Confiança": [
         "nunca ouvi falar", "é seguro?", "isso é confiável"
     ],
-    "objecao_resultado": [
+    "Eficácia": [
         "isso funciona mesmo", "tem prova?", "funciona de verdade"
     ],
-    "objecao_entrega": [
+    "Entrega": [
         "demora pra chegar", "moro longe", "entrega demora"
     ],
-    "objecao_garantia": [
+    "Garantia": [
         "posso devolver", "tem garantia"
     ],
-    "objecao_composicao": [
+    "Composição": [
         "o que tem nele", "composição", "contra indicação"
     ],
-    "objecao_forma_pagamento": [
+    "Forma de pagamento": [
         "não uso pix", "só tenho boleto", "não tenho cartão"
     ],
-    "objecao_familia": [
+    "Família": [
         "vou falar com meu marido", "minha mãe não deixa", "vou ver com meu pai"
     ],
-    "objecao_gravidez": [
+    "Gravidez": [
         "estou grávida", "posso usar grávida"
     ]
 }
 
 EVASIVAS = {
     "evasiva_vou_pensar": [
-        "vou pensar", "te aviso depois", "vou decidir"
+        "Vou pensar", "te aviso depois", "vou decidir"
     ],
-    "evasiva_sem_resposta": [
+    "Sem resposta": [
         "..."  # placeholder para ausência
     ],
-    "evasiva_preciso_ver_com_alguem": [
+    "Preciso ver com alguém": [
         "vou ver com minha esposa", "vou falar com meu médico"
     ],
-    "evasiva_esperar_salario": [
+    "Esperar salário": [
         "recebo semana que vem", "esperar meu pagamento", "salário cai dia"
     ],
-    "evasiva_desconfianca": [
+    "Desconfiança": [
         "tem muita coisa falsa", "não confio muito"
     ],
-    "evasiva_teste_primeiro": [
+    "Teste primeiro": [
         "posso comprar só um", "testar primeiro", "ver se funciona primeiro"
     ]
 }
