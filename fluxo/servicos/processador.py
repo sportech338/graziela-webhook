@@ -99,7 +99,7 @@ def processar_mensagem_da_fila(telefone):
 
     etapa = identificar_etapa(mensagem_completa)
     contexto, emojis_ja_usados = obter_contexto(telefone)
-    prompt = montar_prompt_por_etapa(etapa, mensagem_completa, contexto)
+    prompt = montar_prompt_por_etapa(etapa, mensagem_completa, contexto, BASE_PROMPT)
 
     resposta, novos_emojis = gerar_resposta_formatada(prompt, emojis_ja_usados)
     if not resposta:
