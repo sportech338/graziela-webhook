@@ -1,25 +1,13 @@
 from google.cloud import firestore
 from datetime import datetime
 import os
-import base64
 import json
+from fluxo.servicos.util import criar_arquivo_credenciais
 
 CREDENTIALS_PATH = "credentials.json"
 
-def criar_arquivo_credenciais():
-    try:
-        encoded = os.environ.get("GOOGLE_CREDENTIALS_BASE64")
-        if not encoded:
-            raise ValueError("Variável GOOGLE_CREDENTIALS_BASE64 não encontrada.")
-        decoded = base64.b64decode(encoded).decode("utf-8")
-        with open(CREDENTIALS_PATH, "w") as f:
-            f.write(decoded)
-        print("🔐 Arquivo credentials.json criado com sucesso.")
-    except Exception as e:
-        print(f"❌ Erro ao criar credentials.json: {e}")
-
 if not os.path.exists(CREDENTIALS_PATH):
-    criar_arquivo_credenciais()
+    criar_arquivo_credenciais(CREDENTIALS_PATH)
 
 firestore_client = firestore.Client.from_service_account_json(CREDENTIALS_PATH)
 
