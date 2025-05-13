@@ -61,7 +61,7 @@ def salvar_no_firestore(telefone, mensagem_cliente, resposta_ia, msg_id, etapa_j
         }
 
         if objecao:
-            dados_salvos["objecoes"] = objecao
+            dados_salvos["objeção"] = objecao
 
         print("🧾 Dados que serão salvos:", dados_salvos)
 
