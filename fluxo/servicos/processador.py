@@ -54,7 +54,6 @@ def quebrar_em_blocos_humanizado(texto, limite=350):
             tempos.append(2)
     return blocos, tempos
 
-
 def iniciar_processamento(telefone):
     status_ref = firestore_client.collection("status_threads").document(telefone)
     doc = status_ref.get()
@@ -66,7 +65,6 @@ def iniciar_processamento(telefone):
     status_ref.set({"em_execucao": True})
     print(f"🚀 Iniciando nova thread para {telefone}.")
     threading.Thread(target=processar_mensagem_da_fila, args=(telefone,)).start()
-
 
 def processar_mensagem_da_fila(telefone):
     time.sleep(15)
@@ -86,7 +84,7 @@ def processar_mensagem_da_fila(telefone):
     msg_id = mensagens_ordenadas[-1]["msg_id"]
 
     etapa = identificar_etapa_jornada(mensagem_completa) or "abordagem_inicial"
-    objecao = identificar_objecao(mensagem_completa)  # 👈 detecta objeção aqui
+    objecao = identificar_objecao(mensagem_completa)
     consciencia = classificar_consciencia(mensagem_completa)
     contexto, emojis_ja_usados = obter_contexto(telefone)
     prompt = montar_prompt_por_etapa(etapa, mensagem_completa, contexto, BASE_PROMPT, objecao=objecao)
@@ -100,8 +98,10 @@ def processar_mensagem_da_fila(telefone):
     blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada)
     resposta_compacta = "\n\n".join(blocos)
 
-    # 👇 aqui passamos objecao como o 6º argumento
-    if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa, objecao):
+    if not salvar_no_firestore(
+        telefone, mensagem_completa, resposta_compacta, msg_id,
+        etapa_jornada=etapa, objecao=objecao, consciencia=consciencia
+    ):
         return
 
     whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
