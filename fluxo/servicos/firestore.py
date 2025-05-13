@@ -1,7 +1,27 @@
 import os
+import base64
 from datetime import datetime
 from google.cloud import firestore
-from fluxo.servicos.openai_client import resumir_historico
+from google.oauth2.service_account import Credentials
+from fluxo.servicos.openai_client import gerar_resposta
+
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+SPREADSHEET_NAME = "Histórico de conversas | Graziela"
+
+def criar_arquivo_credenciais():
+    try:
+        encoded = os.environ.get("GOOGLE_CREDENTIALS_BASE64")
+        if not encoded:
+            raise ValueError("Variável GOOGLE_CREDENTIALS_BASE64 não encontrada.")
+        decoded = base64.b64decode(encoded).decode("utf-8")
+        with open("credentials.json", "w") as f:
+            f.write(decoded)
+        print("🔐 Arquivo credentials.json criado com sucesso.")
+    except Exception as e:
+        print(f"❌ Erro ao criar credentials.json: {e}")
+
+if not os.path.exists("credentials.json"):
+    criar_arquivo_credenciais()
 
 CREDENTIALS_PATH = "credentials.json"
 firestore_client = firestore.Client.from_service_account_json(CREDENTIALS_PATH)
@@ -24,10 +44,7 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
         mensagens.append({"quem": "graziela", "texto": resposta, "timestamp": agora.isoformat()})
 
         if len(mensagens) > 40:
-            texto_completo = "\n".join([
-                f"{'Cliente' if m['quem']=='cliente' else 'Graziela'}: {m['texto']}"
-                for m in mensagens
-            ])
+            texto_completo = "\n".join([f"{'Cliente' if m['quem']=='cliente' else 'Graziela'}: {m['texto']}" for m in mensagens])
             novo_resumo = resumir_historico(texto_completo)
             resumo = f"{resumo}\n{novo_resumo}".strip()
             mensagens = mensagens[-6:]
@@ -59,9 +76,8 @@ def obter_contexto(telefone):
             linhas = [f"{'Cliente' if m['quem']=='cliente' else 'Graziela'}: {m['texto']}" for m in mensagens]
             contexto = f"{resumo}\n" + "\n".join(linhas) if resumo else "\n".join(linhas)
 
-            texto_respostas = " ".join([
-                m["texto"] for m in mensagens if m["quem"] == "graziela"
-            ])
+            # Emojis usados pela Graziela
+            texto_respostas = " ".join([m["texto"] for m in mensagens if m["quem"] == "graziela"])
             emojis_ja_usados = [e for e in ["😊", "💙"] if e in texto_respostas]
 
             return contexto, emojis_ja_usados
@@ -69,5 +85,16 @@ def obter_contexto(telefone):
         print(f"❌ Erro ao obter contexto: {e}")
     return "", []
 
-def firestore_client_instance():
-    return firestore_client
+def resumir_historico(historico):
+    try:
+        return gerar_resposta(
+            prompt=[
+                {"role": "system", "content": "Resuma com clareza e sem perder contexto..."},
+                {"role": "user", "content": historico}
+            ],
+            temperatura=0.3,
+            max_tokens=300
+        )
+    except Exception as e:
+        print(f"❌ Erro ao resumir histórico: {e}")
+        return historico[-3000:]
