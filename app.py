@@ -13,7 +13,7 @@ from collections import defaultdict
 import threading
 import re
 from fluxo.etapas_jornada import ETAPAS_JORNADA
-from respostas.gerador_respostas import gerar_resposta
+from fluxo.respostas.gerador_respostas import gerar_resposta
 
 app = Flask(__name__)
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
