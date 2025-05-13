@@ -781,7 +781,6 @@ if doc.exists and doc.to_dict().get("last_msg_id") == msg_id:
     print("⚠️ Mensagem já foi processada. Pulando salvar_no_firestore.")
 else:
     if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
-        return
 
 # 📲 Envia os blocos com delay humanizado via WhatsApp
 whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
