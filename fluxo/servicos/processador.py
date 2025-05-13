@@ -12,6 +12,7 @@ from fluxo.respostas.gerador_respostas import gerar_resposta_formatada, montar_p
 from fluxo.base_prompt import BASE_PROMPT
 from fluxo.etapas_jornada import identificar_etapa_jornada
 from fluxo.objecoes import identificar_objecao
+from fluxo.servicos.consciencia_cliente import classificar_consciencia
 
 ETAPAS_DELAY = {
     "inicio": 15,
@@ -86,7 +87,7 @@ def processar_mensagem_da_fila(telefone):
 
     etapa = identificar_etapa_jornada(mensagem_completa) or "abordagem_inicial"
     objecao = identificar_objecao(mensagem_completa)  # 👈 detecta objeção aqui
-
+    consciencia = classificar_consciencia(mensagem_completa)
     contexto, emojis_ja_usados = obter_contexto(telefone)
     prompt = montar_prompt_por_etapa(etapa, mensagem_completa, contexto, BASE_PROMPT, objecao=objecao)
 
