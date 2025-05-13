@@ -695,33 +695,30 @@ Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergun
 """})
 
     completion = client.chat.completions.create(
-    model="gpt-4o",
-    messages=prompt,
-    temperature=0.5,
-    max_tokens=300
-)
+        model="gpt-4o",
+        messages=prompt,
+        temperature=0.5,
+        max_tokens=300
+    )
 
-resposta = completion.choices[0].message.content.strip()
-print(f"🤖 GPT: {resposta}")
-resposta, novos_emojis = remover_emojis_repetidos(resposta, emojis_ja_usados)
+    resposta = completion.choices[0].message.content.strip()
+    print(f"🤖 GPT: {resposta}")
+    resposta, novos_emojis = remover_emojis_repetidos(resposta, emojis_ja_usados)
 
-# 🚫 Verificador de frases passivas proibidas
-def contem_frase_proibida(texto):
-    frases_proibidas = [
-        "se tiver dúvidas, estou à disposição",
-        "me chama se quiser",
-        "qualquer coisa, estou por aqui"
-    ]
-    texto_lower = texto.lower()
-    return any(frase in texto_lower for frase in frases_proibidas)
+    def contem_frase_proibida(texto):
+        frases_proibidas = [
+            "se tiver dúvidas, estou à disposição",
+            "me chama se quiser",
+            "qualquer coisa, estou por aqui"
+        ]
+        texto_lower = texto.lower()
+        return any(frase in texto_lower for frase in frases_proibidas)
 
-# ⚠️ Validação final da resposta antes de enviar
-if contem_frase_proibida(resposta):
-    print("⚠️ Frase passiva proibida detectada. Requisitando reformulação automática...")
-
-    reformulacao_prompt = [
-        {"role": "system", "content": "Você é Graziela, consultora da Sportech. Reformule a mensagem anterior."},
-        {"role": "user", "content": f"""Essa foi a resposta que você deu:
+    if contem_frase_proibida(resposta):
+        print("⚠️ Frase passiva proibida detectada. Requisitando reformulação automática...")
+        reformulacao_prompt = [
+            {"role": "system", "content": "Você é Graziela, consultora da Sportech. Reformule a mensagem anterior."},
+            {"role": "user", "content": f"""Essa foi a resposta que você deu:
 
 {resposta}
 
@@ -730,83 +727,79 @@ if contem_frase_proibida(resposta):
 Reescreva de forma gentil e consultiva, **removendo a frase passiva** e encerrando com uma pergunta clara que incentive o cliente a continuar a conversa.
 
 Mantenha os blocos curtos com até 350 caracteres e separados por **duas quebras de linha**."""}
-    ]
+        ]
 
-    try:
-        nova_resposta = client.chat.completions.create(
-            model="gpt-4o",
-            messages=reformulacao_prompt,
-            temperature=0.4,
-            max_tokens=300
-        ).choices[0].message.content.strip()
+        try:
+            nova_resposta = client.chat.completions.create(
+                model="gpt-4o",
+                messages=reformulacao_prompt,
+                temperature=0.4,
+                max_tokens=300
+            ).choices[0].message.content.strip()
 
-        print("✅ Resposta reformulada automaticamente.")
-        resposta = nova_resposta
-        resposta, novos_emojis = remover_emojis_repetidos(resposta, emojis_ja_usados)
+            print("✅ Resposta reformulada automaticamente.")
+            resposta = nova_resposta
+            resposta, novos_emojis = remover_emojis_repetidos(resposta, emojis_ja_usados)
 
-    except Exception as e:
-        print(f"❌ Erro ao reformular resposta: {e}")
-        resposta += "\n\n(Por favor, reformule com uma pergunta clara ao final)"
-# 🔄 Quebra e prepara a resposta
-resposta_normalizada = re.sub(r'(\\n|\\r|\\r\\n|\r\n|\r|\n)', '\n', resposta)
-blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, limite=350)
-resposta_compacta = "\n\n".join(blocos)
+        except Exception as e:
+            print(f"❌ Erro ao reformular resposta: {e}")
+            resposta += "\n\n(Por favor, reformule com uma pergunta clara ao final)"
 
-# ⏱️ Delay inicial adaptado pela etapa
-etapas_delay = {
-    "coletando_dados_pessoais": 120,
-    "coletando_endereco": 120,
-    "pagamento_realizado": 25,
-    "aguardando_pagamento": 30,
-    "resistencia_financeira": 20
-}
-delay_inicial = etapas_delay.get(etapa, 15)
-if tempos:
-    tempos[0] = delay_inicial
+    resposta_normalizada = re.sub(r'(\\n|\\r|\\r\\n|\r\n|\r|\n)', '\n', resposta)
+    blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, limite=350)
+    resposta_compacta = "\n\n".join(blocos)
 
-# 🧠 Ajusta etapa detectada com base no conteúdo da resposta
-if etapa == "inicio":
-    resposta_lower = resposta.lower()
-    if re.search(r"vou precisar.*dados", resposta_lower):
-        etapa = "coletando_dados_pessoais"
-    elif "endereço completo" in resposta_lower:
-        etapa = "coletando_endereco"
-    elif "prefere pix" in resposta_lower:
-        etapa = "pergunta_forma_pagamento"
-
-# 💾 Evita duplicidade de processamento
-doc_ref = firestore_client.collection("conversas").document(telefone)
-doc = doc_ref.get()
-if doc.exists and doc.to_dict().get("last_msg_id") == msg_id:
-    print("⚠️ Mensagem já foi processada. Pulando salvar_no_firestore.")
-else:
-    if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
-        return
-# 📲 Envia os blocos com delay humanizado via WhatsApp
-whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
-headers = {
-    "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN']}",
-    "Content-Type": "application/json"
-}
-
-for i, (bloco, delay) in enumerate(zip(blocos, tempos)):
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": telefone,
-        "text": {"body": bloco}
+    etapas_delay = {
+        "coletando_dados_pessoais": 120,
+        "coletando_endereco": 120,
+        "pagamento_realizado": 25,
+        "aguardando_pagamento": 30,
+        "resistencia_financeira": 20
     }
-    response = requests.post(whatsapp_url, headers=headers, json=payload)
-    print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {response.status_code} | {response.text}")
-    time.sleep(delay)
-    if response.status_code != 200:
-        print(f"❌ Erro ao enviar bloco {i+1}: {response.text}")
+    delay_inicial = etapas_delay.get(etapa, 15)
+    if tempos:
+        tempos[0] = delay_inicial
 
-# 📋 Registra no Sheets + limpa fila e status
-registrar_no_sheets(telefone, mensagem_completa, resposta_compacta)
-temp_ref.delete()
-firestore_client.collection("status_threads").document(telefone).delete()
-print("🧹 Fila temporária limpa.")
-print("🔁 Thread finalizada e status limpo.")
+    if etapa == "inicio":
+        resposta_lower = resposta.lower()
+        if re.search(r"vou precisar.*dados", resposta_lower):
+            etapa = "coletando_dados_pessoais"
+        elif "endereço completo" in resposta_lower:
+            etapa = "coletando_endereco"
+        elif "prefere pix" in resposta_lower:
+            etapa = "pergunta_forma_pagamento"
+
+    doc_ref = firestore_client.collection("conversas").document(telefone)
+    doc = doc_ref.get()
+    if doc.exists and doc.to_dict().get("last_msg_id") == msg_id:
+        print("⚠️ Mensagem já foi processada. Pulando salvar_no_firestore.")
+    else:
+        if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
+            return  # ✅ AGORA ESTÁ DENTRO DA FUNÇÃO E COM A INDENTAÇÃO CORRETA
+
+    whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
+    headers = {
+        "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN']}",
+        "Content-Type": "application/json"
+    }
+
+    for i, (bloco, delay) in enumerate(zip(blocos, tempos)):
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": telefone,
+            "text": {"body": bloco}
+        }
+        response = requests.post(whatsapp_url, headers=headers, json=payload)
+        print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {response.status_code} | {response.text}")
+        time.sleep(delay)
+        if response.status_code != 200:
+            print(f"❌ Erro ao enviar bloco {i+1}: {response.text}")
+
+    registrar_no_sheets(telefone, mensagem_completa, resposta_compacta)
+    temp_ref.delete()
+    firestore_client.collection("status_threads").document(telefone).delete()
+    print("🧹 Fila temporária limpa.")
+    print("🔁 Thread finalizada e status limpo.")
 
 @app.route("/filtrar-etapa/<etapa>", methods=["GET"])
 def filtrar_por_etapa(etapa):
