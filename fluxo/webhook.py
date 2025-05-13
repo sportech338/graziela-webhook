@@ -1,15 +1,19 @@
 from flask import Blueprint, request, make_response
 import os
 import json
+from datetime import datetime
 
-from fluxo.servicos.processador import processar_mensagem_recebida
-from fluxo.servicos.firestore import salvar_no_firestore, obter_contexto, firestore_client
+from fluxo.servicos.processador import iniciar_processamento
+from fluxo.servicos.firestore import firestore_client
+from google.cloud import firestore
 
 webhook_bp = Blueprint("webhook", __name__)
+
 
 @webhook_bp.route("/", methods=["GET"])
 def home():
     return "Servidor da Graziela com memória ativa 💬🧠"
+
 
 @webhook_bp.route("/webhook", methods=["GET"])
 def verify_webhook():
@@ -17,14 +21,41 @@ def verify_webhook():
         return make_response(request.args.get("hub.challenge"), 200)
     return make_response("Erro de verificação", 403)
 
+
 @webhook_bp.route("/webhook", methods=["POST"])
 def webhook():
     try:
-        processar_mensagem_recebida(request.get_json())
+        data = request.get_json()
+        msg_data = data["entry"][0]["changes"][0]["value"]
+        mensagens = msg_data.get("messages", [])
+        if not mensagens:
+            return "ok", 200
+
+        telefone = mensagens[0].get("from")
+        msg_id = mensagens[0].get("id")
+        texto = mensagens[0].get("text", {}).get("body", "")
+
+        temp_ref = firestore_client.collection("conversas_temp").document(telefone)
+        temp_doc = temp_ref.get()
+        pendentes = temp_doc.to_dict().get("pendentes", []) if temp_doc.exists else []
+
+        pendentes.append({
+            "texto": texto,
+            "timestamp": datetime.utcnow().isoformat(),
+            "msg_id": msg_id
+        })
+
+        temp_ref.set({"pendentes": pendentes})
+        print("⏳ Mensagem adicionada à fila temporária.")
+
+        iniciar_processamento(telefone)
+
         return "ok", 200
+
     except Exception as e:
         print(f"❌ Erro geral no webhook: {e}")
         return make_response("Erro interno", 500)
+
 
 @webhook_bp.route("/filtrar-etapa/<etapa>", methods=["GET"])
 def filtrar_por_etapa(etapa):
