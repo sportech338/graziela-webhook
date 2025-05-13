@@ -2,23 +2,23 @@ from typing import Optional
 
 # Mapa de padrões para cada nível de consciência
 CONSCIENCIA_MAPA = {
-    "inconsciente": [
+    "Incosciente do produto": [
         "não sei do que se trata", "nem sei o que é isso", "não entendi",
         "que produto é esse?", "do que se trata?"
     ],
-    "problema_consciente": [
+    "Consciente do problema": [
         "tenho dores", "me sinto cansado", "tô com dificuldade",
         "não estou bem", "preciso de ajuda com meu corpo"
     ],
-    "solucao_consciente": [
+    "Consciente da solução": [
         "isso pode ajudar?", "me falaram que resolve", "existe algo pra isso?",
         "o que resolve isso?"
     ],
-    "produto_consciente": [
+    "Consciente do produto": [
         "já ouvi falar", "vi no Instagram", "conheço esse produto",
         "alguém me indicou"
     ],
-    "pronto_para_compra": [
+    "Pronto para comprar": [
         "quero agora", "como faço pra comprar?", "me manda o link",
         "aceita pix?", "passa o valor"
     ]
