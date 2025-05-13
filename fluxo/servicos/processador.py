@@ -9,6 +9,7 @@ from fluxo.servicos.firestore import firestore_client, salvar_no_firestore, obte
 from fluxo.servicos.sheets import registrar_no_sheets
 from fluxo.servicos.openai_client import gerar_resposta
 from fluxo.respostas.gerador_respostas import gerar_resposta_formatada, montar_prompt_por_etapa
+from fluxo.base_prompt import BASE_PROMPT
 
 ETAPAS_DELAY = {
     "coletando_dados_pessoais": 120,
