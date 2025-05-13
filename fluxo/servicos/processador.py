@@ -18,7 +18,6 @@ ETAPAS_DELAY = {
     "resistencia_financeira": 20
 }
 
-
 def identificar_etapa(mensagem):
     msg = mensagem.lower()
     if any(p in msg for p in ["paguei", "tá pago", "comprovante"]):
@@ -39,10 +38,8 @@ def identificar_etapa(mensagem):
         return "pergunta_forma_pagamento"
     return "inicio"
 
-
 def quebrar_em_blocos_humanizado(texto, limite=350):
-    blocos = []
-    tempos = []
+    blocos, tempos = [], []
     for trecho in texto.split("\n\n"):
         trecho = trecho.strip()
         if not trecho:
@@ -71,62 +68,63 @@ def quebrar_em_blocos_humanizado(texto, limite=350):
             tempos.append(2)
     return blocos, tempos
 
+def iniciar_processamento(telefone):
+    status_ref = firestore_client.collection("status_threads").document(telefone)
+    if not status_ref.get().exists:
+        status_ref.set({"em_execucao": True})
+        threading.Thread(target=processar_mensagem_da_fila, args=(telefone,)).start()
 
-def processar_mensagem_recebida(data):
-    mensagens = data["entry"][0]["changes"][0]["value"].get("messages", [])
+def processar_mensagem_da_fila(telefone):
+    time.sleep(15)
+    temp_ref = firestore_client.collection("conversas_temp").document(telefone)
+    temp_doc = temp_ref.get()
+    if not temp_doc.exists:
+        return
+
+    dados = temp_doc.to_dict()
+    mensagens = dados.get("pendentes", [])
     if not mensagens:
         return
 
-    mensagens_por_remetente = defaultdict(list)
-    telefone = None
-    msg_id = None
+    mensagens_ordenadas = sorted(mensagens, key=lambda m: m["timestamp"])
+    mensagem_completa = " ".join([m["texto"] for m in mensagens_ordenadas]).strip()
+    msg_id = mensagens_ordenadas[-1]["msg_id"]
 
-    for msg in mensagens:
-        if "from" not in msg:
-            continue
-        telefone = msg["from"]
-        msg_id = msg["id"]
-        timestamp = datetime.utcfromtimestamp(int(msg.get("timestamp", time.time())))
+    etapa = identificar_etapa(mensagem_completa)
+    contexto, emojis_ja_usados = obter_contexto(telefone)
+    prompt = montar_prompt_por_etapa(etapa, mensagem_completa, contexto)
 
-        if msg.get("type") == "text":
-            mensagens_por_remetente[telefone].append((timestamp, msg["text"]["body"]))
+    resposta, novos_emojis = gerar_resposta_formatada(prompt, emojis_ja_usados)
+    if not resposta:
+        print("❌ Erro ao gerar resposta. Abortando.")
+        return
 
-    if telefone in mensagens_por_remetente:
-        sorted_msgs = sorted(mensagens_por_remetente[telefone], key=lambda x: x[0])
-        mensagem_completa = " ".join([txt for _, txt in sorted_msgs]).strip()
+    resposta_normalizada = re.sub(r'(\\n|\\r|\\r\\n|\r\n|\r|\n)', '\n', resposta)
+    blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, limite=350)
+    resposta_compacta = "\n\n".join(blocos)
 
-        etapa = identificar_etapa(mensagem_completa)
-        contexto, emojis_ja_usados = obter_contexto(telefone)
-        prompt = montar_prompt_por_etapa(etapa, mensagem_completa, contexto)
+    if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
+        return
 
-        resposta, novos_emojis = gerar_resposta_formatada(prompt, emojis_ja_usados)
-        if not resposta:
-            print("❌ Erro ao gerar resposta. Abortando.")
-            return
+    whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
+    headers = {
+        "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN']}",
+        "Content-Type": "application/json"
+    }
 
-        resposta_normalizada = re.sub(r'(\\n|\\r|\\r\\n|\r\n|\r|\n)', '\n', resposta)
-        blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, limite=350)
-        resposta_compacta = "\n\n".join(blocos)
-
-        if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
-            return
-
-        whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
-        headers = {
-            "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN']}",
-            "Content-Type": "application/json"
+    import requests
+    for i, (bloco, delay) in enumerate(zip(blocos, tempos)):
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": telefone,
+            "text": {"body": bloco}
         }
+        res = requests.post(whatsapp_url, headers=headers, json=payload)
+        print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {res.status_code} | {res.text}")
+        time.sleep(delay)
 
-        import requests
-        for i, (bloco, delay) in enumerate(zip(blocos, tempos)):
-            payload = {
-                "messaging_product": "whatsapp",
-                "to": telefone,
-                "text": {"body": bloco}
-            }
-            res = requests.post(whatsapp_url, headers=headers, json=payload)
-            print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {res.status_code} | {res.text}")
-            time.sleep(delay)
-
-        registrar_no_sheets(telefone, mensagem_completa, resposta_compacta)
-        print("✅ Atendimento finalizado.")
+    registrar_no_sheets(telefone, mensagem_completa, resposta_compacta)
+    temp_ref.delete()
+    firestore_client.collection("status_threads").document(telefone).delete()
+    print("🧹 Fila temporária limpa.")
+    print("🔁 Thread finalizada e status limpo.")
