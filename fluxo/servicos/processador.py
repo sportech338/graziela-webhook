@@ -2,8 +2,8 @@ import os
 import time
 import re
 import threading
+import requests
 from datetime import datetime
-from collections import defaultdict
 
 from fluxo.servicos.firestore import firestore_client, salvar_no_firestore, obter_contexto
 from fluxo.servicos.sheets import registrar_no_sheets
@@ -12,12 +12,14 @@ from fluxo.respostas.gerador_respostas import gerar_resposta_formatada, montar_p
 from fluxo.base_prompt import BASE_PROMPT
 
 ETAPAS_DELAY = {
+    "inicio": 15,
     "coletando_dados_pessoais": 120,
     "coletando_endereco": 120,
     "pagamento_realizado": 25,
     "aguardando_pagamento": 30,
     "resistencia_financeira": 20
 }
+
 
 def identificar_etapa(mensagem):
     msg = mensagem.lower()
@@ -39,6 +41,7 @@ def identificar_etapa(mensagem):
         return "pergunta_forma_pagamento"
     return "inicio"
 
+
 def quebrar_em_blocos_humanizado(texto, limite=350):
     blocos, tempos = [], []
     for trecho in texto.split("\n\n"):
@@ -58,6 +61,7 @@ def quebrar_em_blocos_humanizado(texto, limite=350):
                     paragrafo = parte
             if paragrafo:
                 blocos.append(paragrafo.strip())
+
     for i, bloco in enumerate(blocos):
         if i == 0:
             tempos.append(ETAPAS_DELAY.get("inicio", 15))
@@ -69,10 +73,11 @@ def quebrar_em_blocos_humanizado(texto, limite=350):
             tempos.append(2)
     return blocos, tempos
 
+
 def iniciar_processamento(telefone):
     status_ref = firestore_client.collection("status_threads").document(telefone)
     doc = status_ref.get()
-    
+
     if doc.exists and doc.to_dict().get("em_execucao"):
         print(f"⏳ Já existe uma thread ativa para {telefone}. Ignorando nova chamada.")
         return
@@ -81,8 +86,10 @@ def iniciar_processamento(telefone):
     print(f"🚀 Iniciando nova thread para {telefone}.")
     threading.Thread(target=processar_mensagem_da_fila, args=(telefone,)).start()
 
+
 def processar_mensagem_da_fila(telefone):
     time.sleep(15)
+
     temp_ref = firestore_client.collection("conversas_temp").document(telefone)
     temp_doc = temp_ref.get()
     if not temp_doc.exists:
@@ -107,7 +114,7 @@ def processar_mensagem_da_fila(telefone):
         return
 
     resposta_normalizada = re.sub(r'(\\n|\\r|\\r\\n|\r\n|\r|\n)', '\n', resposta)
-    blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, limite=350)
+    blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada)
     resposta_compacta = "\n\n".join(blocos)
 
     if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
@@ -119,7 +126,6 @@ def processar_mensagem_da_fila(telefone):
         "Content-Type": "application/json"
     }
 
-    import requests
     for i, (bloco, delay) in enumerate(zip(blocos, tempos)):
         payload = {
             "messaging_product": "whatsapp",
