@@ -70,9 +70,15 @@ def quebrar_em_blocos_humanizado(texto, limite=350):
 
 def iniciar_processamento(telefone):
     status_ref = firestore_client.collection("status_threads").document(telefone)
-    if not status_ref.get().exists:
-        status_ref.set({"em_execucao": True})
-        threading.Thread(target=processar_mensagem_da_fila, args=(telefone,)).start()
+    doc = status_ref.get()
+    
+    if doc.exists and doc.to_dict().get("em_execucao"):
+        print(f"⏳ Já existe uma thread ativa para {telefone}. Ignorando nova chamada.")
+        return
+
+    status_ref.set({"em_execucao": True})
+    print(f"🚀 Iniciando nova thread para {telefone}.")
+    threading.Thread(target=processar_mensagem_da_fila, args=(telefone,)).start()
 
 def processar_mensagem_da_fila(telefone):
     time.sleep(15)
