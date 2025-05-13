@@ -1,33 +1,32 @@
 from google.cloud import firestore
 from datetime import datetime
 import os
-import json
 from fluxo.servicos.util import criar_arquivo_credenciais
 
 CREDENTIALS_PATH = "credentials.json"
 
+# Garante que o arquivo de credenciais seja criado antes de iniciar o cliente
 if not os.path.exists(CREDENTIALS_PATH):
     criar_arquivo_credenciais(CREDENTIALS_PATH)
 
 firestore_client = firestore.Client.from_service_account_json(CREDENTIALS_PATH)
 
-
-def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
+def salvar_no_firestore(telefone, mensagem_cliente, resposta_ia, msg_id, etapa, etapa_jornada=None):
     try:
         doc_ref = firestore_client.collection("conversas").document(telefone)
         doc = doc_ref.get()
-        data = doc.to_dict() if doc.exists else {}
-
-        if data.get("last_msg_id") == msg_id:
-            print("⚠️ Mensagem já processada anteriormente. Ignorando.")
-            return False
-
-        mensagens = data.get("mensagens", [])
-        resumo = data.get("resumo", "")
         agora = datetime.now()
 
-        mensagens.append({"quem": "cliente", "texto": mensagem, "timestamp": agora.isoformat()})
-        mensagens.append({"quem": "graziela", "texto": resposta, "timestamp": agora.isoformat()})
+        if doc.exists:
+            data = doc.to_dict()
+            mensagens = data.get("mensagens", [])
+            resumo = data.get("resumo", "")
+        else:
+            mensagens = []
+            resumo = ""
+
+        mensagens.append({"quem": "cliente", "texto": mensagem_cliente, "timestamp": agora.isoformat()})
+        mensagens.append({"quem": "graziela", "texto": resposta_ia, "timestamp": agora.isoformat()})
 
         if len(mensagens) > 40:
             from fluxo.servicos.openai_client import resumir_texto
@@ -40,6 +39,7 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
         doc_ref.set({
             "telefone": telefone,
             "etapa": etapa,
+            "etapa_jornada": etapa_jornada,
             "ultima_interacao": agora,
             "mensagens": mensagens,
             "resumo": resumo,
@@ -52,7 +52,6 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
     except Exception as e:
         print(f"❌ Erro ao salvar no Firestore: {e}")
         return False
-
 
 def obter_contexto(telefone):
     try:
