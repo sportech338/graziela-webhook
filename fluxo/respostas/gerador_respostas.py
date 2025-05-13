@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 from fluxo.servicos.openai_client import gerar_resposta
 from fluxo.etapas_jornada import ETAPAS_JORNADA
 
@@ -8,11 +9,11 @@ FRASES_PROIBIDAS = [
     "qualquer coisa, estou por aqui"
 ]
 
-def contem_frase_proibida(texto):
+def contem_frase_proibida(texto: str) -> bool:
     texto_lower = texto.lower()
     return any(frase in texto_lower for frase in FRASES_PROIBIDAS)
 
-def remover_emojis_repetidos(texto, emojis_ja_usados):
+def remover_emojis_repetidos(texto: str, emojis_ja_usados: list[str]) -> tuple[str, list[str]]:
     emojis_validos = ["😊", "💙"]
     novos_emojis_usados = []
 
@@ -26,7 +27,7 @@ def remover_emojis_repetidos(texto, emojis_ja_usados):
 
     return texto, novos_emojis_usados
 
-def gerar_resposta_formatada(prompt, emojis_ja_usados):
+def gerar_resposta_formatada(prompt: list[dict], emojis_ja_usados: list[str]) -> tuple[Optional[str], list[str]]:
     resposta = gerar_resposta(prompt)
     if not resposta:
         return None, []
@@ -53,13 +54,14 @@ Blocos curtos (máx. 350 caracteres) separados por duas quebras de linha."""}
 
     return resposta, novos_emojis
 
-def montar_prompt_por_etapa(etapa, mensagem_cliente, contexto, base_prompt):
-    prompt = [
-        {
-            "role": "system",
-            "content": base_prompt
-        }
-    ]
+def montar_prompt_por_etapa(
+    etapa: str,
+    mensagem_cliente: str,
+    contexto: str,
+    base_prompt: str,
+    objecao: Optional[str] = None
+) -> list[dict]:
+    prompt = [{"role": "system", "content": base_prompt}]
 
     if contexto:
         prompt.append({
@@ -69,16 +71,32 @@ def montar_prompt_por_etapa(etapa, mensagem_cliente, contexto, base_prompt):
 
     mensagem_base = f"Nova mensagem do cliente:\n{mensagem_cliente}"
 
-    if etapa == "solicitou_valor":
+    if objecao:
+        prompt.append({
+            "role": "user",
+            "content": f"""⚠️ Objeção detectada: {objecao.replace("_", " ").capitalize()}.
+
+Antes de seguir normalmente, contorne a objeção com empatia, prova social e reforço de confiança.
+
+Só depois retome o fluxo com condução leve e consultativa.
+
+⚠️ Use blocos curtos (máx. 350 caracteres), com duas quebras de linha entre eles."""
+        })
+
+    if etapa == "apresentou_valor":
         prompt.append({
             "role": "user",
             "content": mensagem_base + """
 
-IMPORTANTE: Antes de apresentar os valores, acolha com empatia. Só depois conduza para os kits (120 → 60 → 30 → 20). Destaque o de 30 como mais vendido. Finalize com pergunta consultiva clara.
-Responda em blocos curtos (máx. 350 caracteres), separados por duas quebras de linha (\\n\\n)."""
+IMPORTANTE: Antes de apresentar os valores, acolha com empatia.  
+Só depois conduza para os kits (120 → 60 → 30 → 20).  
+Destaque o de 30 como mais vendido.  
+Finalize com pergunta consultiva clara.
+
+Blocos curtos (máx. 350 caracteres), separados por duas quebras de linha (\\n\\n)."""
         })
 
-    elif etapa == "coletando_dados_pessoais":
+    elif etapa == "coleta_dados_pessoais":
         prompt.append({
             "role": "user",
             "content": mensagem_base + """
@@ -100,13 +118,14 @@ Bloco 3:
 """
         })
 
-    elif etapa == "coletando_endereco":
+    elif etapa == "coleta_endereco":
         prompt.append({
             "role": "user",
             "content": mensagem_base + """
 
 O cliente já passou os dados. Agora, solicite o endereço:
 
+Bloco 1:
 "Agora preciso do seu endereço completo:
 
 - CEP:
@@ -114,31 +133,19 @@ O cliente já passou os dados. Agora, solicite o endereço:
 - Número:
 - Complemento (opcional):"
 
+Bloco 2:
 "Assim que estiver certinho, seguimos pra finalização."
 """
         })
 
-    elif etapa == "resistencia_financeira":
-        prompt.append({
-            "role": "user",
-            "content": mensagem_base + """
-
-Acolha com empatia. Mostre valor antes de apresentar qualquer preço.
-
-- \"Imagino o quanto deve estar pesado conviver com isso.\"
-- \"Se for pra investir em algo, que seja no que pode devolver sua qualidade de vida, né?\"
-
-Finalize com uma pergunta clara. Blocos curtos, tom consultivo."""
-        })
-
-    elif etapa == "pergunta_forma_pagamento":
+    elif etapa == "forma_pagamento":
         prompt.append({
             "role": "user",
             "content": mensagem_base + """
 
 Cliente pronto pra fechar. Pergunte direto:
 
-\"Prefere Pix à vista com desconto ou cartão em até 12x?\"
+"Prefere Pix à vista com desconto ou cartão em até 12x?"
 
 Nada de frases abertas. Aguarde a escolha antes de mandar link."""
         })
@@ -148,7 +155,13 @@ Nada de frases abertas. Aguarde a escolha antes de mandar link."""
             "role": "user",
             "content": mensagem_base + """
 
-Responda com empatia e leveza. Use blocos curtos (máx. 350 caracteres) e termine com uma pergunta clara que mantenha o fluxo. Nunca use frases passivas como 'qualquer coisa, estou por aqui'."""
+Responda com empatia e leveza.
+
+Use blocos curtos (máx. 350 caracteres) separados por duas quebras de linha (\\n\\n).
+
+Termine com uma pergunta clara que mantenha o fluxo.
+
+⚠️ Nunca use frases passivas como 'qualquer coisa, estou por aqui'."""
         })
 
     return prompt
