@@ -16,12 +16,30 @@ from fluxo.respostas.gerador_respostas import gerar_resposta_formatada, montar_p
 from fluxo.base_prompt import BASE_PROMPT
 from fluxo.servicos.controle_jornada import controlar_jornada
 
-ETAPAS_DELAY = {
-    "abordagem_inicial": 15,
+# Delays personalizados por etapa da jornada
+DELAY_POR_ETAPA = {
+    "abordagem_inicial": 20,
+    "conexao_profunda": 12,
+    "entendimento_dor": 15,
+    "antecipou_objecao": 12,
+    "apresentou_produto": 10,
+    "prova_social": 8,
+    "apresentou_valor": 20,
+    "reforco_beneficio_personalizado": 10,
+    "validou_oferta": 8,
+    "comparou_kits": 12,
+    "verificou_duvidas": 6,
+    "recomendacao_final_fechamento": 8,
+    "confirmacao_resumo_pedido": 10,
     "coleta_dados_pessoais": 120,
     "coleta_endereco": 120,
+    "forma_pagamento": 60,
+    "aguardando_pagamento": 60,
     "pagamento_realizado": 25,
-    "aguardando_pagamento": 30
+    "pos_venda": 15,
+    "encerramento": 10,
+    "reengajamento": 15,
+    "recuperacao_fluxo": 15
 }
 
 def quebrar_em_blocos_humanizado(texto, etapa=None, limite=350):
@@ -49,7 +67,9 @@ def quebrar_em_blocos_humanizado(texto, etapa=None, limite=350):
 
     for i, bloco in enumerate(blocos):
         if i == 0:
-            tempos.append(ETAPAS_DELAY.get(etapa, 15))
+            if etapa not in DELAY_POR_ETAPA:
+                print(f"⚠️ Etapa '{etapa}' não configurada em DELAY_POR_ETAPA. Usando delay padrão de 15s.")
+            tempos.append(DELAY_POR_ETAPA.get(etapa, 15))
         elif len(bloco) > 250:
             tempos.append(6)
         elif len(bloco) > 100:
