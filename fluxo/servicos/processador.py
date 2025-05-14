@@ -5,7 +5,11 @@ import threading
 import requests
 from datetime import datetime
 
-from fluxo.servicos.firestore import firestore_client, salvar_no_firestore, obter_contexto
+from fluxo.servicos.firestore import (
+    firestore_client,
+    salvar_no_firestore,
+    obter_contexto
+)
 from fluxo.servicos.sheets import registrar_no_sheets
 from fluxo.servicos.openai_client import gerar_resposta
 from fluxo.respostas.gerador_respostas import gerar_resposta_formatada, montar_prompt_por_etapa
@@ -78,8 +82,8 @@ def processar_mensagem_da_fila(telefone):
         return
 
     mensagens_ordenadas = sorted(mensagens, key=lambda m: m["timestamp"])
-    mensagem_completa = " ".join([m["texto"] for m in mensagens_ordenadas]).strip()
-    msg_id = mensagens_ordenadas[-1]["msg_id"]
+    mensagem_completa = " ".join([m["texto"] for m in mensagens_ordenadas if m.get("texto")]).strip()
+    msg_id = mensagens_ordenadas[-1].get("msg_id")
 
     contexto, emojis_ja_usados = obter_contexto(telefone)
     estado_anterior = firestore_client.collection("conversas").document(telefone).get().to_dict() or {}
