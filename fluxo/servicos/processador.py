@@ -12,7 +12,7 @@ from fluxo.respostas.gerador_respostas import gerar_resposta_formatada, montar_p
 from fluxo.base_prompt import BASE_PROMPT
 from fluxo.etapas_jornada import identificar_etapa_jornada
 from fluxo.objecoes import identificar_objecao
-from fluxo.servicos.consciencia_cliente import classificar_consciencia
+from fluxo.consciencia_cliente import classificar_consciencia
 
 ETAPAS_DELAY = {
     "inicio": 15,
