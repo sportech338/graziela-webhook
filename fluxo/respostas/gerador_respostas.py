@@ -63,7 +63,8 @@ def montar_prompt_por_etapa(
     justificativa_objecao: Optional[str] = None,
     ambiguidade_justificativa: Optional[str] = None,
     justificativa_consciencia: Optional[str] = None,
-    justificativa_temperatura: Optional[str] = None
+    justificativa_temperatura: Optional[str] = None,
+    justificativa_etapa: Optional[str] = None
 ) -> list[dict]:
     prompt = [{"role": "system", "content": base_prompt}]
 
@@ -94,6 +95,12 @@ Antes de seguir normalmente, contorne a objeção com empatia, prova social e re
 Só depois retome o fluxo com condução leve e consultiva.
 
 ⚠️ Use blocos curtos (máx. 350 caracteres), com duas quebras de linha entre eles."""
+        })
+
+    if justificativa_etapa:
+        prompt.append({
+            "role": "user",
+            "content": f"Etapa sugerida: {etapa.replace('_', ' ')}.\nJustificativa: {justificativa_etapa}"
         })
 
     if justificativa_consciencia:
