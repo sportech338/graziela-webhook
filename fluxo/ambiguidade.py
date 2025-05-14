@@ -29,10 +29,12 @@ def detectar_sinais_ambiguidade(mensagem: str) -> Tuple[bool, Optional[str]]:
 
     for padrao in PADROES_IRONIA:
         if re.search(padrao, texto):
-            return True, f"😏 Indício de ironia identificado: \"{padrao}\""
+            texto_explicito = re.findall(padrao, texto)
+            return True, f"😏 Indício de ironia identificado: \"{texto_explicito[0]}\""
 
     for padrao in PADROES_DUVIDA_DISFARCADA:
         if re.search(padrao, texto):
-            return True, f"🤔 Indício de hesitação identificado: \"{padrao}\""
+            texto_explicito = re.findall(padrao, texto)
+            return True, f"🤔 Indício de hesitação identificado: \"{texto_explicito[0]}\""
 
     return False, None
