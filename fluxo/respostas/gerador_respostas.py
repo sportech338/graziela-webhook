@@ -60,6 +60,7 @@ def montar_prompt_por_etapa(
     contexto: str,
     base_prompt: str,
     objecao: Optional[str] = None,
+    justificativa_objecao: Optional[str] = None,
     ambiguidade_justificativa: Optional[str] = None
 ) -> list[dict]:
     prompt = [{"role": "system", "content": base_prompt}]
@@ -81,9 +82,10 @@ Use o histórico para validar se é o caso e responda de forma empática e clara
         })
 
     if objecao:
+        justificativa_txt = f"\n\nContexto adicional: {justificativa_objecao}" if justificativa_objecao else ""
         prompt.append({
             "role": "user",
-            "content": f"""⚠️ Objeção detectada: {objecao.replace("_", " ").capitalize()}.
+            "content": f"""⚠️ Objeção detectada: {objecao.replace("_", " ").capitalize()}.{justificativa_txt}
 
 Antes de seguir normalmente, contorne a objeção com empatia, prova social e reforço de confiança.
 
