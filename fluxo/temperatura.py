@@ -1,3 +1,5 @@
+# fluxo/temperatura.py
+
 from typing import Optional, Tuple
 from difflib import SequenceMatcher
 
@@ -18,7 +20,6 @@ MAPA_TEMPERATURA = {
 }
 
 def similar(a: str, b: str) -> float:
-    """Calcula a similaridade entre duas frases."""
     return SequenceMatcher(None, a, b).ratio()
 
 def classificar_temperatura(mensagem: str) -> Tuple[Optional[str], Optional[str]]:
@@ -31,14 +32,14 @@ def classificar_temperatura(mensagem: str) -> Tuple[Optional[str], Optional[str]
     melhor_score = 0.0
     justificativa = None
 
-    for nivel in reversed(NIVEIS_TEMPERATURA):  # Começa do mais quente
+    for nivel in reversed(NIVEIS_TEMPERATURA):  # Prioriza 'quente' → 'morno' → 'frio'
         for padrao in MAPA_TEMPERATURA[nivel]:
             if padrao in texto:
                 return nivel, f"🔥 Frase identificada: \"{padrao}\""
             score = similar(padrao, texto)
-            if score > 0.78 and score > melhor_score:
+            if score > 0.70 and score > melhor_score:
                 melhor_score = score
                 melhor_nivel = nivel
-                justificativa = f"♨️ Frase semelhante: \"{padrao}\" (similaridade {score:.2f})"
+                justificativa = f"♨️ Frase semelhante a \"{padrao}\" (similaridade {score:.2f})"
 
     return (melhor_nivel, justificativa) if melhor_nivel else (None, None)
