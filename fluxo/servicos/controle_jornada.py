@@ -50,7 +50,7 @@ def controlar_jornada(mensagem: str, contexto: str, estado_anterior: dict = None
     nova_etapa = identificar_etapa_jornada(texto_total)
     nova_objecao = identificar_objecao(texto_total)
     nova_consciencia = classificar_consciencia(texto_total)
-    nova_temperatura = classificar_temperatura(mensagem, contexto)
+    nova_temperatura = classificar_temperatura(mensagem)
 
     if estado_anterior:
         etapa = estado_anterior.get("etapa")
