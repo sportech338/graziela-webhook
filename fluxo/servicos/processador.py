@@ -82,8 +82,7 @@ def processar_mensagem_da_fila(telefone):
     msg_id = mensagens_ordenadas[-1]["msg_id"]
 
     contexto, emojis_ja_usados = obter_contexto(telefone)
-    doc_ref = firestore_client.collection("conversas").document(telefone).get()
-    estado_anterior = doc_ref.to_dict() if doc_ref.exists else {}
+    estado_anterior = firestore_client.collection("conversas").document(telefone).get().to_dict() or {}
 
     estado_atual = controlar_jornada(mensagem_completa, contexto, estado_anterior)
 
@@ -104,7 +103,7 @@ def processar_mensagem_da_fila(telefone):
     blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada)
     resposta_compacta = "\n\n".join(blocos)
 
-    if not salvar_no_firestore(
+    sucesso = salvar_no_firestore(
         telefone,
         mensagem_completa,
         resposta_compacta,
@@ -112,8 +111,10 @@ def processar_mensagem_da_fila(telefone):
         etapa_jornada=estado_atual["etapa"],
         objecao=estado_atual.get("objeção"),
         consciencia=estado_atual.get("consciência"),
-        temperatura=estado_atual.get("temperatura")  # ✅ vinda do controle central
-    ):
+        temperatura=estado_atual.get("temperatura")
+    )
+
+    if not sucesso:
         return
 
     whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
