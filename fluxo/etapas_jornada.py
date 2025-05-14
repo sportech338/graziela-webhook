@@ -1,4 +1,6 @@
 from unidecode import unidecode
+from difflib import SequenceMatcher
+from typing import Tuple, Optional
 
 # Lista sequencial das etapas da jornada do cliente
 ETAPAS_JORNADA = [
@@ -55,9 +57,21 @@ PADROES_ETAPA = {
 def etapa_valida(etapa: str) -> bool:
     return etapa in ETAPAS_JORNADA
 
-def identificar_etapa_jornada(mensagem: str) -> str:
+def identificar_etapa_jornada(mensagem: str) -> Tuple[str, str]:
     msg = unidecode(mensagem.lower())
+    melhor_etapa = "abordagem_inicial"
+    melhor_score = 0.0
+    melhor_padrao = ""
+
     for etapa, padroes in PADROES_ETAPA.items():
-        if any(p in msg for p in padroes):
-            return etapa
-    return "abordagem_inicial"
+        for padrao in padroes:
+            padrao_normalizado = unidecode(padrao.lower())
+            if padrao_normalizado in msg:
+                return etapa, f"🔎 Padrão identificado: '{padrao}'"
+            score = SequenceMatcher(None, msg, padrao_normalizado).ratio()
+            if score > 0.70 and score > melhor_score:
+                melhor_score = score
+                melhor_etapa = etapa
+                melhor_padrao = padrao
+
+    return melhor_etapa, (f"🤏 Similaridade detectada: '{melhor_padrao}' (score {melhor_score:.2f})" if melhor_padrao else "")
