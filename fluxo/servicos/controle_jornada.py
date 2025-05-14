@@ -45,7 +45,7 @@ def controlar_jornada(mensagem: str, contexto: str, estado_anterior: dict = None
     Analisa consciência, objeção, temperatura, etapa e ambiguidade.
     """
     texto_total = f"{contexto} {mensagem}".strip().lower()
-    sinais, justificativa_ambiguidade = detectar_sinais_ambiguidade(mensagem, contexto)
+    ambiguidade_detectada, justificativa_ambiguidade = detectar_sinais_ambiguidade(mensagem)
 
     nova_etapa = identificar_etapa_jornada(texto_total)
     nova_objecao = identificar_objecao(texto_total)
@@ -54,7 +54,7 @@ def controlar_jornada(mensagem: str, contexto: str, estado_anterior: dict = None
 
     if estado_anterior:
         etapa = estado_anterior.get("etapa")
-        if not sinais["ambiguidade"] and nova_etapa:
+        if not ambiguidade_detectada and nova_etapa:
             etapa = nova_etapa
 
         objecao_anterior = estado_anterior.get("objeção")
@@ -76,6 +76,6 @@ def controlar_jornada(mensagem: str, contexto: str, estado_anterior: dict = None
         "objeção": objecao,
         "consciência": consciencia,
         "temperatura": temperatura,
-        "ambiguidade": sinais["ambiguidade"],
+        "ambiguidade": ambiguidade_detectada,
         "justificativa_ambiguidade": justificativa_ambiguidade
     }
