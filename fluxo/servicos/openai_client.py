@@ -4,6 +4,9 @@ import openai
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 def gerar_resposta(prompt, temperatura=0.5, max_tokens=300, modelo="gpt-4o"):
+    """
+    Envia um prompt para o modelo do OpenAI e retorna a resposta formatada.
+    """
     try:
         resposta = client.chat.completions.create(
             model=modelo,
@@ -17,9 +20,12 @@ def gerar_resposta(prompt, temperatura=0.5, max_tokens=300, modelo="gpt-4o"):
         return None
 
 def resumir_texto(historico, modelo="gpt-4o"):
+    """
+    Resume o histórico da conversa para manter o contexto leve e eficiente.
+    """
     try:
         prompt = [
-            {"role": "system", "content": "Resuma com clareza e sem perder contexto..."},
+            {"role": "system", "content": "Você é uma IA especialista em resumos. Resuma de forma clara, mantendo os pontos importantes, as decisões e o tom emocional do cliente."},
             {"role": "user", "content": historico}
         ]
         return gerar_resposta(prompt, temperatura=0.3, max_tokens=300, modelo=modelo)
