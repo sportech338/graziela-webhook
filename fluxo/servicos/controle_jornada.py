@@ -2,6 +2,7 @@ from fluxo.etapas_jornada import identificar_etapa_jornada
 from fluxo.objecoes import identificar_objecao
 from fluxo.consciencia_cliente import classificar_consciencia
 from fluxo.temperatura import classificar_temperatura
+from fluxo.ambiguidade import detectar_sinais_ambiguidade  # ✅ Nova importação
 
 NIVEIS_CONSCIENCIA = [
     "inconsciente",
@@ -35,27 +36,36 @@ def avaliar_evolucao_consciencia(nova: str, anterior: str) -> str:
 
 def controlar_jornada(mensagem: str, contexto: str, estado_anterior: dict = None) -> dict:
     texto_total = f"{contexto} {mensagem}".strip().lower()
+    sinais = detectar_sinais_ambiguidade(mensagem, contexto)  # ✅ Análise de ambiguidade
 
-    etapa = identificar_etapa_jornada(texto_total)
-    objecao = identificar_objecao(texto_total)
-    consciencia = classificar_consciencia(texto_total)
-    temperatura = classificar_temperatura(mensagem, contexto)
+    nova_etapa = identificar_etapa_jornada(texto_total)
+    nova_objecao = identificar_objecao(texto_total)
+    nova_consciencia = classificar_consciencia(texto_total)
+    nova_temperatura = classificar_temperatura(mensagem, contexto)
 
     if estado_anterior:
-        etapa = etapa or estado_anterior.get("etapa")
+        etapa = estado_anterior.get("etapa")
+        if not sinais["ambiguidade"] and nova_etapa:
+            etapa = nova_etapa
 
         objecao_anterior = estado_anterior.get("objeção")
         if objecao_anterior and objeção_foi_contornada(objecao_anterior, texto_total):
             objecao = None
         else:
-            objecao = objecao or objecao_anterior
+            objecao = nova_objecao or objecao_anterior
 
-        consciencia = avaliar_evolucao_consciencia(consciencia, estado_anterior.get("consciência"))
-        temperatura = temperatura or estado_anterior.get("temperatura")
+        consciencia = avaliar_evolucao_consciencia(nova_consciencia, estado_anterior.get("consciência"))
+        temperatura = nova_temperatura or estado_anterior.get("temperatura")
+    else:
+        etapa = nova_etapa
+        objecao = nova_objecao
+        consciencia = nova_consciencia
+        temperatura = nova_temperatura
 
     return {
         "etapa": etapa,
         "objeção": objecao,
         "consciência": consciencia,
-        "temperatura": temperatura
+        "temperatura": temperatura,
+        "ambiguidade": sinais["ambiguidade"]  # 👀 útil para debug ou decisões futuras
     }
