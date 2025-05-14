@@ -48,6 +48,6 @@ def classificar_consciencia(mensagem: str) -> Tuple[Optional[str], Optional[str]
             if score > 0.78 and score > melhor_score:
                 melhor_score = score
                 melhor_nivel = nivel
-                justificativa = f"🤏 Frase semelhante: \"{padrao}\" (similaridade {score:.2f})"
+                justificativa = f"🤏 Frase semelhante a \"{padrao}\" (similaridade {score:.2f})"
 
     return (melhor_nivel, justificativa) if melhor_nivel else (None, None)
