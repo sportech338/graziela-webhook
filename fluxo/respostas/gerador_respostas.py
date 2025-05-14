@@ -61,7 +61,9 @@ def montar_prompt_por_etapa(
     base_prompt: str,
     objecao: Optional[str] = None,
     justificativa_objecao: Optional[str] = None,
-    ambiguidade_justificativa: Optional[str] = None
+    ambiguidade_justificativa: Optional[str] = None,
+    justificativa_consciencia: Optional[str] = None,
+    justificativa_temperatura: Optional[str] = None
 ) -> list[dict]:
     prompt = [{"role": "system", "content": base_prompt}]
 
@@ -94,6 +96,18 @@ Só depois retome o fluxo com condução leve e consultiva.
 ⚠️ Use blocos curtos (máx. 350 caracteres), com duas quebras de linha entre eles."""
         })
 
+    if justificativa_consciencia:
+        prompt.append({
+            "role": "user",
+            "content": f"Nível de consciência sugerido: {justificativa_consciencia}"
+        })
+
+    if justificativa_temperatura:
+        prompt.append({
+            "role": "user",
+            "content": f"Temperatura emocional sugerida: {justificativa_temperatura}"
+        })
+
     mensagem_base = f"Nova mensagem do cliente:\n{mensagem_cliente}"
 
     if etapa == "apresentou_valor":
@@ -117,17 +131,17 @@ Blocos curtos (máx. 350 caracteres), separados por duas quebras de linha."""
 O cliente quer finalizar. Solicite dados pessoais com leveza:
 
 Bloco 1:
-"Perfeito! Vamos garantir seu pedido com segurança."
+\"Perfeito! Vamos garantir seu pedido com segurança.\"
 
 Bloco 2:
-"Preciso de alguns dados seus:
+\"Preciso de alguns dados seus:
 
 - Nome completo:
 - CPF:
-- Telefone com DDD:"
+- Telefone com DDD:\"
 
 Bloco 3:
-"Tem algum e-mail pra envio do código de rastreio?" """
+\"Tem algum e-mail pra envio do código de rastreio?\" """
         })
 
     elif etapa == "coleta_endereco":
@@ -138,15 +152,15 @@ Bloco 3:
 Agora solicite o endereço:
 
 Bloco 1:
-"Agora preciso do seu endereço completo:
+\"Agora preciso do seu endereço completo:
 
 - CEP:
 - Endereço:
 - Número:
-- Complemento (opcional):"
+- Complemento (opcional):\"
 
 Bloco 2:
-"Assim que estiver certinho, seguimos pra finalização." """
+\"Assim que estiver certinho, seguimos pra finalização.\" """
         })
 
     elif etapa == "forma_pagamento":
@@ -156,7 +170,7 @@ Bloco 2:
 
 Cliente pronto pra fechar. Pergunte direto:
 
-"Prefere Pix à vista com desconto ou cartão em até 12x?"
+\"Prefere Pix à vista com desconto ou cartão em até 12x?\"
 
 Aguarde a escolha antes de enviar qualquer link."""
         })
