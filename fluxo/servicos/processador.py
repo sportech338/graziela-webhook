@@ -11,6 +11,7 @@ from fluxo.servicos.openai_client import gerar_resposta
 from fluxo.respostas.gerador_respostas import gerar_resposta_formatada, montar_prompt_por_etapa
 from fluxo.base_prompt import BASE_PROMPT
 from fluxo.controle_jornada import controlar_jornada
+from fluxo.classificar_temperatura import classificar_temperatura
 
 ETAPAS_DELAY = {
     "inicio": 15,
@@ -82,14 +83,18 @@ def processar_mensagem_da_fila(telefone):
     msg_id = mensagens_ordenadas[-1]["msg_id"]
 
     contexto, emojis_ja_usados = obter_contexto(telefone)
-
     doc_ref = firestore_client.collection("conversas").document(telefone).get()
     estado_anterior = doc_ref.to_dict() if doc_ref.exists else {}
 
     estado_atual = controlar_jornada(mensagem_completa, contexto, estado_anterior)
+    temperatura = classificar_temperatura(mensagem_completa)  # 👈 nova classificação
 
     prompt = montar_prompt_por_etapa(
-        estado_atual["etapa"], mensagem_completa, contexto, BASE_PROMPT, objecao=estado_atual.get("objeção")
+        estado_atual["etapa"],
+        mensagem_completa,
+        contexto,
+        BASE_PROMPT,
+        objecao=estado_atual.get("objeção")
     )
 
     resposta, novos_emojis = gerar_resposta_formatada(prompt, emojis_ja_usados)
@@ -102,10 +107,14 @@ def processar_mensagem_da_fila(telefone):
     resposta_compacta = "\n\n".join(blocos)
 
     if not salvar_no_firestore(
-        telefone, mensagem_completa, resposta_compacta, msg_id,
+        telefone,
+        mensagem_completa,
+        resposta_compacta,
+        msg_id,
         etapa_jornada=estado_atual["etapa"],
         objecao=estado_atual.get("objeção"),
-        consciencia=estado_atual.get("consciência")
+        consciencia=estado_atual.get("consciência"),
+        temperatura=temperatura  # 👈 agora salva também
     ):
         return
 
