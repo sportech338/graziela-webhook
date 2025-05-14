@@ -11,7 +11,16 @@ if not os.path.exists(CREDENTIALS_PATH):
 
 firestore_client = firestore.Client.from_service_account_json(CREDENTIALS_PATH)
 
-def salvar_no_firestore(telefone, mensagem_cliente, resposta_ia, msg_id, etapa_jornada, objecao=None, consciencia=None, temperatura=None):
+def salvar_no_firestore(
+    telefone,
+    mensagem_cliente,
+    resposta_ia,
+    msg_id,
+    etapa_jornada,
+    objecao=None,
+    consciencia=None,
+    temperatura=None
+):
     try:
         print("📝 Iniciando salvamento no Firestore...")
 
@@ -24,6 +33,7 @@ def salvar_no_firestore(telefone, mensagem_cliente, resposta_ia, msg_id, etapa_j
             mensagens = data.get("mensagens", [])
             resumo = data.get("resumo", "")
         else:
+            data = {}
             mensagens = []
             resumo = ""
 
@@ -57,9 +67,9 @@ def salvar_no_firestore(telefone, mensagem_cliente, resposta_ia, msg_id, etapa_j
             "resumo": resumo,
             "ultimo_resumo_em": agora.isoformat(),
             "last_msg_id": msg_id,
-            "objeção": objecao or data.get("objeção") if doc.exists else None,
-            "consciência": consciencia or data.get("consciência") if doc.exists else None,
-            "temperatura": temperatura or data.get("temperatura") if doc.exists else None
+            "objeção": objecao or data.get("objeção"),
+            "consciência": consciencia or data.get("consciência"),
+            "temperatura": temperatura or data.get("temperatura")
         }
 
         print("🧾 Dados que serão salvos:", dados_salvos)
@@ -79,7 +89,7 @@ def obter_contexto(telefone):
             dados = doc.to_dict()
             resumo = dados.get("resumo", "")
             mensagens = dados.get("mensagens", [])
-            linhas = [f"{'Cliente' if m['quem']=='cliente' else 'Graziela'}: {m['texto']}" for m in mensagens]
+            linhas = [f"{'Cliente' if m['quem'] == 'cliente' else 'Graziela'}: {m['texto']}" for m in mensagens]
             contexto = f"{resumo}\n" + "\n".join(linhas) if resumo else "\n".join(linhas)
 
             texto_respostas = " ".join([m["texto"] for m in mensagens if m["quem"] == "graziela"])
