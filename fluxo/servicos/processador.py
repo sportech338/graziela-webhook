@@ -14,7 +14,7 @@ from fluxo.servicos.sheets import registrar_no_sheets
 from fluxo.servicos.openai_client import gerar_resposta
 from fluxo.respostas.gerador_respostas import gerar_resposta_formatada, montar_prompt_por_etapa
 from fluxo.base_prompt import BASE_PROMPT
-from fluxo.controle_jornada import controlar_jornada
+from fluxo.servicos.controle_jornada import controlar_jornada
 
 ETAPAS_DELAY = {
     "inicio": 15,
