@@ -82,8 +82,11 @@ def processar_mensagem_da_fila(telefone):
     msg_id = mensagens_ordenadas[-1]["msg_id"]
 
     contexto, emojis_ja_usados = obter_contexto(telefone)
-    estado_anterior = firestore_client.collection("conversas").document(telefone).get().to_dict()
-    estado_atual = controlar_jornada(mensagem_completa, estado_anterior)
+
+    doc_ref = firestore_client.collection("conversas").document(telefone).get()
+    estado_anterior = doc_ref.to_dict() if doc_ref.exists else {}
+
+    estado_atual = controlar_jornada(mensagem_completa, contexto, estado_anterior)
 
     prompt = montar_prompt_por_etapa(
         estado_atual["etapa"], mensagem_completa, contexto, BASE_PROMPT, objecao=estado_atual.get("objeção")
@@ -100,7 +103,9 @@ def processar_mensagem_da_fila(telefone):
 
     if not salvar_no_firestore(
         telefone, mensagem_completa, resposta_compacta, msg_id,
-        etapa_jornada=estado_atual["etapa"], objecao=estado_atual.get("objeção"), consciencia=estado_atual.get("consciência")
+        etapa_jornada=estado_atual["etapa"],
+        objecao=estado_atual.get("objeção"),
+        consciencia=estado_atual.get("consciência")
     ):
         return
 
