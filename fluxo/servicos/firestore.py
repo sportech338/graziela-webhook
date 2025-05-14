@@ -5,7 +5,6 @@ from fluxo.servicos.util import criar_arquivo_credenciais
 
 CREDENTIALS_PATH = "credentials.json"
 
-# 🔐 Garante que as credenciais estão disponíveis
 if not os.path.exists(CREDENTIALS_PATH):
     criar_arquivo_credenciais(CREDENTIALS_PATH)
 
@@ -20,7 +19,12 @@ def salvar_no_firestore(
     etapa_jornada: str,
     objecao: str = None,
     consciencia: str = None,
-    temperatura: str = None
+    temperatura: str = None,
+    justificativa_etapa: str = None,
+    justificativa_objecao: str = None,
+    justificativa_consciencia: str = None,
+    justificativa_temperatura: str = None,
+    justificativa_ambiguidade: str = None
 ) -> bool:
     try:
         print("📝 Iniciando salvamento no Firestore...")
@@ -37,7 +41,6 @@ def salvar_no_firestore(
             mensagens = []
             resumo = ""
 
-        # ➕ Adiciona novas mensagens
         mensagens.append({
             "quem": "cliente",
             "texto": mensagem_cliente,
@@ -49,7 +52,6 @@ def salvar_no_firestore(
             "timestamp": agora.isoformat()
         })
 
-        # ✂️ Resume se houver excesso de mensagens
         if len(mensagens) > 40:
             from fluxo.servicos.openai_client import resumir_texto
             texto_completo = "\n".join([
@@ -58,7 +60,7 @@ def salvar_no_firestore(
             ])
             novo_resumo = resumir_texto(texto_completo)
             resumo = f"{resumo}\n{novo_resumo}".strip()
-            mensagens = mensagens[-6:]  # Mantém apenas as últimas
+            mensagens = mensagens[-6:]
 
             print("📉 Mensagens antigas resumidas.")
 
@@ -72,7 +74,12 @@ def salvar_no_firestore(
             "last_msg_id": msg_id,
             "objeção": objecao or data.get("objeção"),
             "consciência": consciencia or data.get("consciência"),
-            "temperatura": temperatura or data.get("temperatura")
+            "temperatura": temperatura or data.get("temperatura"),
+            "justificativa_etapa": justificativa_etapa,
+            "justificativa_objecao": justificativa_objecao,
+            "justificativa_consciencia": justificativa_consciencia,
+            "justificativa_temperatura": justificativa_temperatura,
+            "justificativa_ambiguidade": justificativa_ambiguidade
         }
 
         print("🧾 Dados que serão salvos:", dados_salvos)
