@@ -158,21 +158,24 @@ Cliente pronto pra fechar. Pergunte direto:
 
 "Prefere Pix à vista com desconto ou cartão em até 12x?"
 
-Aguarde a escolha antes de enviar qualquer link.""" 
+Aguarde a escolha antes de enviar qualquer link."""
         })
 
     else:
         prompt.append({
             "role": "user",
-            "content": mensagem_base + """
-
-Responda com empatia e leveza.
-
-Use blocos curtos (máx. 350 caracteres) separados por duas quebras de linha.
-
-Finalize com uma pergunta clara que incentive a continuidade da conversa.
-
-⚠️ Nunca use frases passivas como 'qualquer coisa, estou por aqui'."""
+            "content": mensagem_base
         })
+
+    prompt.append({
+        "role": "user",
+        "content": """Responda com leveza e empatia.
+
+Se a resposta for longa, divida em blocos curtos de até 350 caracteres cada, separados por duas quebras de linha (\n\n), para facilitar a leitura.
+
+Evite blocos desnecessários em respostas curtas. Só use quebras quando ajudar na clareza e no ritmo da conversa.
+
+Finalize com uma pergunta consultiva que incentive a continuidade da interação."""
+    })
 
     return prompt
