@@ -59,7 +59,8 @@ def montar_prompt_por_etapa(
     mensagem_cliente: str,
     contexto: str,
     base_prompt: str,
-    objecao: Optional[str] = None
+    objecao: Optional[str] = None,
+    ambiguidade_justificativa: Optional[str] = None
 ) -> list[dict]:
     prompt = [{"role": "system", "content": base_prompt}]
 
@@ -69,7 +70,15 @@ def montar_prompt_por_etapa(
             "content": f"Histórico da conversa até aqui:\n{contexto}"
         })
 
-    mensagem_base = f"Nova mensagem do cliente:\n{mensagem_cliente}"
+    if ambiguidade_justificativa:
+        prompt.append({
+            "role": "user",
+            "content": f"""⚠️ Atenção: Pode haver ambiguidade, dúvida ou ironia na última mensagem. 
+
+{ambiguidade_justificativa}
+
+Use o histórico para validar se é o caso e responda de forma empática e clara."""
+        })
 
     if objecao:
         prompt.append({
@@ -78,10 +87,12 @@ def montar_prompt_por_etapa(
 
 Antes de seguir normalmente, contorne a objeção com empatia, prova social e reforço de confiança.
 
-Só depois retome o fluxo com condução leve e consultativa.
+Só depois retome o fluxo com condução leve e consultiva.
 
 ⚠️ Use blocos curtos (máx. 350 caracteres), com duas quebras de linha entre eles."""
         })
+
+    mensagem_base = f"Nova mensagem do cliente:\n{mensagem_cliente}"
 
     if etapa == "apresentou_valor":
         prompt.append({
@@ -89,11 +100,11 @@ Só depois retome o fluxo com condução leve e consultativa.
             "content": mensagem_base + """
 
 IMPORTANTE: Antes de apresentar os valores, acolha com empatia.  
-Só depois conduza para os kits (120 → 60 → 30 → 20).  
+Depois conduza para os kits (120 → 60 → 30 → 20).  
 Destaque o de 30 como mais vendido.  
 Finalize com pergunta consultiva clara.
 
-Blocos curtos (máx. 350 caracteres), separados por duas quebras de linha (\\n\\n)."""
+Blocos curtos (máx. 350 caracteres), separados por duas quebras de linha."""
         })
 
     elif etapa == "coleta_dados_pessoais":
@@ -114,8 +125,7 @@ Bloco 2:
 - Telefone com DDD:"
 
 Bloco 3:
-"Tem algum e-mail pra envio do código de rastreio?"
-"""
+"Tem algum e-mail pra envio do código de rastreio?" """
         })
 
     elif etapa == "coleta_endereco":
@@ -123,7 +133,7 @@ Bloco 3:
             "role": "user",
             "content": mensagem_base + """
 
-O cliente já passou os dados. Agora, solicite o endereço:
+Agora solicite o endereço:
 
 Bloco 1:
 "Agora preciso do seu endereço completo:
@@ -134,8 +144,7 @@ Bloco 1:
 - Complemento (opcional):"
 
 Bloco 2:
-"Assim que estiver certinho, seguimos pra finalização."
-"""
+"Assim que estiver certinho, seguimos pra finalização." """
         })
 
     elif etapa == "forma_pagamento":
@@ -147,7 +156,7 @@ Cliente pronto pra fechar. Pergunte direto:
 
 "Prefere Pix à vista com desconto ou cartão em até 12x?"
 
-Nada de frases abertas. Aguarde a escolha antes de mandar link."""
+Aguarde a escolha antes de enviar qualquer link.""" 
         })
 
     else:
@@ -157,9 +166,9 @@ Nada de frases abertas. Aguarde a escolha antes de mandar link."""
 
 Responda com empatia e leveza.
 
-Use blocos curtos (máx. 350 caracteres) separados por duas quebras de linha (\\n\\n).
+Use blocos curtos (máx. 350 caracteres) separados por duas quebras de linha.
 
-Termine com uma pergunta clara que mantenha o fluxo.
+Finalize com uma pergunta clara que incentive a continuidade da conversa.
 
 ⚠️ Nunca use frases passivas como 'qualquer coisa, estou por aqui'."""
         })
