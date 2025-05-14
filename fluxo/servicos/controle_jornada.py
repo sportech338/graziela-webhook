@@ -40,42 +40,55 @@ def avaliar_evolucao_consciencia(nova: str, anterior: str) -> str:
         return anterior
 
 def controlar_jornada(mensagem: str, contexto: str, estado_anterior: dict = None) -> dict:
-    """
-    Controla a jornada do lead considerando a mensagem, o contexto e o estado anterior.
-    Analisa consciência, objeção, temperatura, etapa e ambiguidade.
-    """
     texto_total = f"{contexto} {mensagem}".strip().lower()
+
+    etapa, justificativa_etapa = identificar_etapa_jornada(texto_total)
+    objecao, justificativa_objecao = identificar_objecao(texto_total)
+    consciencia, justificativa_consciencia = classificar_consciencia(texto_total)
+    temperatura, justificativa_temperatura = classificar_temperatura(mensagem)
     ambiguidade_detectada, justificativa_ambiguidade = detectar_sinais_ambiguidade(mensagem)
 
-    nova_etapa = identificar_etapa_jornada(texto_total)
-    nova_objecao = identificar_objecao(texto_total)
-    nova_consciencia = classificar_consciencia(texto_total)
-    nova_temperatura = classificar_temperatura(mensagem)
-
     if estado_anterior:
-        etapa = estado_anterior.get("etapa")
-        if not ambiguidade_detectada and nova_etapa:
-            etapa = nova_etapa
+        if not ambiguidade_detectada and etapa:
+            etapa_atual = etapa
+            justificativa_etapa_atual = justificativa_etapa
+        else:
+            etapa_atual = estado_anterior.get("etapa")
+            justificativa_etapa_atual = estado_anterior.get("justificativa_etapa")
 
         objecao_anterior = estado_anterior.get("objeção")
         if objecao_anterior and objeção_foi_contornada(objecao_anterior, texto_total):
-            objecao = None
+            objecao_atual = None
+            justificativa_objecao_atual = None
         else:
-            objecao = nova_objecao or objecao_anterior
+            objecao_atual = objecao or objecao_anterior
+            justificativa_objecao_atual = justificativa_objecao or estado_anterior.get("justificativa_objecao")
 
-        consciencia = avaliar_evolucao_consciencia(nova_consciencia, estado_anterior.get("consciência"))
-        temperatura = nova_temperatura or estado_anterior.get("temperatura")
+        consciencia_atual = avaliar_evolucao_consciencia(consciencia, estado_anterior.get("consciência"))
+        justificativa_consciencia_atual = justificativa_consciencia or estado_anterior.get("justificativa_consciencia")
+
+        temperatura_atual = temperatura or estado_anterior.get("temperatura")
+        justificativa_temperatura_atual = justificativa_temperatura or estado_anterior.get("justificativa_temperatura")
+
     else:
-        etapa = nova_etapa
-        objecao = nova_objecao
-        consciencia = nova_consciencia
-        temperatura = nova_temperatura
+        etapa_atual = etapa
+        justificativa_etapa_atual = justificativa_etapa
+        objecao_atual = objecao
+        justificativa_objecao_atual = justificativa_objecao
+        consciencia_atual = consciencia
+        justificativa_consciencia_atual = justificativa_consciencia
+        temperatura_atual = temperatura
+        justificativa_temperatura_atual = justificativa_temperatura
 
     return {
-        "etapa": etapa,
-        "objeção": objecao,
-        "consciência": consciencia,
-        "temperatura": temperatura,
+        "etapa": etapa_atual,
+        "justificativa_etapa": justificativa_etapa_atual,
+        "objeção": objecao_atual,
+        "justificativa_objecao": justificativa_objecao_atual,
+        "consciência": consciencia_atual,
+        "justificativa_consciencia": justificativa_consciencia_atual,
+        "temperatura": temperatura_atual,
+        "justificativa_temperatura": justificativa_temperatura_atual,
         "ambiguidade": ambiguidade_detectada,
         "justificativa_ambiguidade": justificativa_ambiguidade
     }
