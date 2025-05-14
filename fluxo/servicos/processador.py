@@ -90,12 +90,14 @@ def processar_mensagem_da_fila(telefone):
 
     estado_atual = controlar_jornada(mensagem_completa, contexto, estado_anterior)
 
+    # Prompt com reforço de ambiguidade, se houver
     prompt = montar_prompt_por_etapa(
-        estado_atual["etapa"],
-        mensagem_completa,
-        contexto,
-        BASE_PROMPT,
-        objecao=estado_atual.get("objeção")
+        etapa=estado_atual["etapa"],
+        mensagem=mensagem_completa,
+        contexto=contexto,
+        base_prompt=BASE_PROMPT,
+        objecao=estado_atual.get("objeção"),
+        ambiguidade_justificativa=estado_atual.get("justificativa_ambiguidade")  # 🔎 opcional, melhora decisão da IA
     )
 
     resposta, novos_emojis = gerar_resposta_formatada(prompt, emojis_ja_usados)
@@ -108,10 +110,10 @@ def processar_mensagem_da_fila(telefone):
     resposta_compacta = "\n\n".join(blocos)
 
     sucesso = salvar_no_firestore(
-        telefone,
-        mensagem_completa,
-        resposta_compacta,
-        msg_id,
+        telefone=telefone,
+        mensagem_cliente=mensagem_completa,
+        resposta_ia=resposta_compacta,
+        msg_id=msg_id,
         etapa_jornada=estado_atual["etapa"],
         objecao=estado_atual.get("objeção"),
         consciencia=estado_atual.get("consciência"),
