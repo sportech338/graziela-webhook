@@ -15,69 +15,7 @@ from fluxo.servicos.openai_client import gerar_resposta
 from fluxo.respostas.gerador_respostas import gerar_resposta_formatada, montar_prompt_por_etapa
 from fluxo.base_prompt import BASE_PROMPT
 from fluxo.servicos.controle_jornada import controlar_jornada
-
-# Delays personalizados por etapa da jornada
-DELAY_POR_ETAPA = {
-    "abordagem_inicial": 20,
-    "conexao_profunda": 12,
-    "entendimento_dor": 15,
-    "antecipou_objecao": 12,
-    "apresentou_produto": 10,
-    "prova_social": 8,
-    "apresentou_valor": 20,
-    "reforco_beneficio_personalizado": 10,
-    "validou_oferta": 8,
-    "comparou_kits": 12,
-    "verificou_duvidas": 6,
-    "recomendacao_final_fechamento": 8,
-    "confirmacao_resumo_pedido": 10,
-    "coleta_dados_pessoais": 120,
-    "coleta_endereco": 120,
-    "forma_pagamento": 60,
-    "aguardando_pagamento": 60,
-    "pagamento_realizado": 25,
-    "pos_venda": 15,
-    "encerramento": 10,
-    "reengajamento": 15,
-    "recuperacao_fluxo": 15
-}
-
-def quebrar_em_blocos_humanizado(texto, etapa=None, limite=350):
-    blocos = []
-    tempos = []
-
-    for trecho in texto.split("\n\n"):
-        trecho = trecho.strip()
-        if not trecho:
-            continue
-
-        if len(trecho) <= limite:
-            blocos.append(trecho)
-        else:
-            partes = re.split(r'(?<=[.!?]) +', trecho)
-            paragrafo = ""
-            for parte in partes:
-                if len(paragrafo) + len(parte) + 1 <= limite:
-                    paragrafo += (" " if paragrafo else "") + parte
-                else:
-                    blocos.append(paragrafo.strip())
-                    paragrafo = parte
-            if paragrafo:
-                blocos.append(paragrafo.strip())
-
-    for i, bloco in enumerate(blocos):
-        if i == 0:
-            if etapa not in DELAY_POR_ETAPA:
-                print(f"⚠️ Etapa '{etapa}' não configurada em DELAY_POR_ETAPA. Usando delay padrão de 15s.")
-            tempos.append(DELAY_POR_ETAPA.get(etapa, 15))
-        elif len(bloco) > 250:
-            tempos.append(6)
-        elif len(bloco) > 100:
-            tempos.append(4)
-        else:
-            tempos.append(2)
-
-    return blocos, tempos
+from fluxo.servicos.util import quebrar_em_blocos_humanizado
 
 def iniciar_processamento(telefone):
     status_ref = firestore_client.collection("status_threads").document(telefone)
