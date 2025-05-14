@@ -5,28 +5,28 @@ from fluxo.servicos.util import criar_arquivo_credenciais
 
 CREDENTIALS_PATH = "credentials.json"
 
-# Garante que o arquivo de credenciais seja criado antes de iniciar o cliente
+# 🔐 Garante que as credenciais estão disponíveis
 if not os.path.exists(CREDENTIALS_PATH):
     criar_arquivo_credenciais(CREDENTIALS_PATH)
 
 firestore_client = firestore.Client.from_service_account_json(CREDENTIALS_PATH)
 
+
 def salvar_no_firestore(
-    telefone,
-    mensagem_cliente,
-    resposta_ia,
-    msg_id,
-    etapa_jornada,
-    objecao=None,
-    consciencia=None,
-    temperatura=None
-):
+    telefone: str,
+    mensagem_cliente: str,
+    resposta_ia: str,
+    msg_id: str,
+    etapa_jornada: str,
+    objecao: str = None,
+    consciencia: str = None,
+    temperatura: str = None
+) -> bool:
     try:
         print("📝 Iniciando salvamento no Firestore...")
-
+        agora = datetime.now()
         doc_ref = firestore_client.collection("conversas").document(telefone)
         doc = doc_ref.get()
-        agora = datetime.now()
 
         if doc.exists:
             data = doc.to_dict()
@@ -37,6 +37,7 @@ def salvar_no_firestore(
             mensagens = []
             resumo = ""
 
+        # ➕ Adiciona novas mensagens
         mensagens.append({
             "quem": "cliente",
             "texto": mensagem_cliente,
@@ -48,6 +49,7 @@ def salvar_no_firestore(
             "timestamp": agora.isoformat()
         })
 
+        # ✂️ Resume se houver excesso de mensagens
         if len(mensagens) > 40:
             from fluxo.servicos.openai_client import resumir_texto
             texto_completo = "\n".join([
@@ -56,7 +58,8 @@ def salvar_no_firestore(
             ])
             novo_resumo = resumir_texto(texto_completo)
             resumo = f"{resumo}\n{novo_resumo}".strip()
-            mensagens = mensagens[-6:]
+            mensagens = mensagens[-6:]  # Mantém apenas as últimas
+
             print("📉 Mensagens antigas resumidas.")
 
         dados_salvos = {
@@ -73,8 +76,8 @@ def salvar_no_firestore(
         }
 
         print("🧾 Dados que serão salvos:", dados_salvos)
-
         doc_ref.set(dados_salvos)
+
         print("📦 Mensagens salvas no Firestore com sucesso.")
         return True
 
@@ -82,17 +85,24 @@ def salvar_no_firestore(
         print(f"❌ Erro ao salvar no Firestore: {e}")
         return False
 
-def obter_contexto(telefone):
+
+def obter_contexto(telefone: str):
     try:
         doc = firestore_client.collection("conversas").document(telefone).get()
         if doc.exists:
             dados = doc.to_dict()
             resumo = dados.get("resumo", "")
             mensagens = dados.get("mensagens", [])
-            linhas = [f"{'Cliente' if m['quem'] == 'cliente' else 'Graziela'}: {m['texto']}" for m in mensagens]
+
+            linhas = [
+                f"{'Cliente' if m['quem'] == 'cliente' else 'Graziela'}: {m['texto']}"
+                for m in mensagens
+            ]
             contexto = f"{resumo}\n" + "\n".join(linhas) if resumo else "\n".join(linhas)
 
-            texto_respostas = " ".join([m["texto"] for m in mensagens if m["quem"] == "graziela"])
+            texto_respostas = " ".join(
+                m["texto"] for m in mensagens if m["quem"] == "graziela"
+            )
             emojis_ja_usados = [e for e in ["😊", "💙"] if e in texto_respostas]
 
             return contexto, emojis_ja_usados
