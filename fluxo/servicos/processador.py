@@ -58,7 +58,10 @@ def processar_mensagem_da_fila(telefone):
         base_prompt=BASE_PROMPT,
         objecao=estado_atual.get("objeção"),
         justificativa_objecao=estado_atual.get("justificativa_objecao"),
-        ambiguidade_justificativa=estado_atual.get("justificativa_ambiguidade")
+        ambiguidade_justificativa=estado_atual.get("justificativa_ambiguidade"),
+        justificativa_consciencia=estado_atual.get("justificativa_consciencia"),
+        justificativa_temperatura=estado_atual.get("justificativa_temperatura"),
+        justificativa_etapa=estado_atual.get("justificativa_etapa")
     )
 
     resposta, novos_emojis = gerar_resposta_formatada(prompt, emojis_ja_usados)
@@ -78,7 +81,12 @@ def processar_mensagem_da_fila(telefone):
         etapa_jornada=estado_atual["etapa"],
         objecao=estado_atual.get("objeção"),
         consciencia=estado_atual.get("consciência"),
-        temperatura=estado_atual.get("temperatura")
+        temperatura=estado_atual.get("temperatura"),
+        justificativa_objecao=estado_atual.get("justificativa_objecao"),
+        justificativa_consciencia=estado_atual.get("justificativa_consciencia"),
+        justificativa_temperatura=estado_atual.get("justificativa_temperatura"),
+        justificativa_etapa=estado_atual.get("justificativa_etapa"),
+        justificativa_ambiguidade=estado_atual.get("justificativa_ambiguidade")
     )
 
     if not sucesso:
