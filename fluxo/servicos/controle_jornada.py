@@ -3,7 +3,6 @@ from fluxo.objecoes import identificar_objecao
 from fluxo.consciencia_cliente import classificar_consciencia
 from fluxo.temperatura import classificar_temperatura
 
-# Níveis ordenados de consciência
 NIVEIS_CONSCIENCIA = [
     "inconsciente",
     "problema_consciente",
@@ -12,12 +11,12 @@ NIVEIS_CONSCIENCIA = [
     "pronto_para_compra"
 ]
 
-def objeção_foi_contornada(ultima_objeção: str, contexto: str, mensagem: str) -> bool:
+def objeção_foi_contornada(ultima_objeção: str, contexto: str) -> bool:
     if not ultima_objeção:
         return True
-    texto = (contexto + " " + mensagem).lower()
-    sinais_positivos = ["entendi", "faz sentido", "ok", "vou comprar", "tá bom", "beleza"]
-    sinais_de_troca = ["mudando de assunto", "outra dúvida", "mas enfim", "seguinte"]
+    texto = contexto.lower()
+    sinais_positivos = ["entendi", "faz sentido", "vou comprar", "ok", "beleza"]
+    sinais_de_troca = ["mudando de assunto", "seguinte", "outra coisa"]
     if any(s in texto for s in sinais_positivos + sinais_de_troca):
         return True
     return ultima_objeção.lower() not in texto
@@ -35,29 +34,24 @@ def avaliar_evolucao_consciencia(nova: str, anterior: str) -> str:
         return anterior
 
 def controlar_jornada(mensagem: str, contexto: str, estado_anterior: dict = None) -> dict:
-    """
-    Controla a evolução do lead com base em mensagem + contexto + estado anterior.
-    """
-    nova_etapa = identificar_etapa_jornada(mensagem)
-    nova_objecao = identificar_objecao(mensagem)
-    nova_consciencia = classificar_consciencia(mensagem)
-    nova_temperatura = classificar_temperatura(mensagem, contexto)
+    texto_total = f"{contexto} {mensagem}".strip().lower()
 
-    etapa = nova_etapa or (estado_anterior.get("etapa") if estado_anterior else None)
+    etapa = identificar_etapa_jornada(texto_total)
+    objecao = identificar_objecao(texto_total)
+    consciencia = classificar_consciencia(texto_total)
+    temperatura = classificar_temperatura(mensagem, contexto)
 
     if estado_anterior:
+        etapa = etapa or estado_anterior.get("etapa")
+
         objecao_anterior = estado_anterior.get("objeção")
-        if objecao_anterior and objeção_foi_contornada(objecao_anterior, contexto, mensagem):
+        if objecao_anterior and objeção_foi_contornada(objecao_anterior, texto_total):
             objecao = None
         else:
-            objecao = nova_objecao or objecao_anterior
-    else:
-        objecao = nova_objecao
+            objecao = objecao or objecao_anterior
 
-    consciencia_anterior = estado_anterior.get("consciência") if estado_anterior else None
-    consciencia = avaliar_evolucao_consciencia(nova_consciencia, consciencia_anterior)
-
-    temperatura = nova_temperatura or (estado_anterior.get("temperatura") if estado_anterior else None)
+        consciencia = avaliar_evolucao_consciencia(consciencia, estado_anterior.get("consciência"))
+        temperatura = temperatura or estado_anterior.get("temperatura")
 
     return {
         "etapa": etapa,
