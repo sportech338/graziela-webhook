@@ -110,3 +110,9 @@ def quebrar_em_blocos_humanizado(texto, etapa=None, limite=350):
             tempos.append(2)
 
     return blocos, tempos
+
+def debug_justificativas(**kwargs):
+    print("\n🧠 Justificativas dos pilares:")
+    for chave, valor in kwargs.items():
+        if valor:
+            print(f"- {chave}: {valor}")
