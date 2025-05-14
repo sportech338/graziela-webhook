@@ -2,7 +2,7 @@ from typing import Optional
 
 # Mapa de padrões para cada nível de consciência
 CONSCIENCIA_MAPA = {
-    "Incosciente do produto": [
+    "Incosciente": [
         "não sei do que se trata", "nem sei o que é isso", "não entendi",
         "que produto é esse?", "do que se trata?"
     ],
