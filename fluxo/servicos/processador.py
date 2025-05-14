@@ -10,9 +10,7 @@ from fluxo.servicos.sheets import registrar_no_sheets
 from fluxo.servicos.openai_client import gerar_resposta
 from fluxo.respostas.gerador_respostas import gerar_resposta_formatada, montar_prompt_por_etapa
 from fluxo.base_prompt import BASE_PROMPT
-from fluxo.etapas_jornada import identificar_etapa_jornada
-from fluxo.objecoes import identificar_objecao
-from fluxo.consciencia_cliente import classificar_consciencia
+from fluxo.controle_jornada import controlar_jornada
 
 ETAPAS_DELAY = {
     "inicio": 15,
@@ -83,11 +81,13 @@ def processar_mensagem_da_fila(telefone):
     mensagem_completa = " ".join([m["texto"] for m in mensagens_ordenadas]).strip()
     msg_id = mensagens_ordenadas[-1]["msg_id"]
 
-    etapa = identificar_etapa_jornada(mensagem_completa) or "abordagem_inicial"
-    objecao = identificar_objecao(mensagem_completa)
-    consciencia = classificar_consciencia(mensagem_completa)
     contexto, emojis_ja_usados = obter_contexto(telefone)
-    prompt = montar_prompt_por_etapa(etapa, mensagem_completa, contexto, BASE_PROMPT, objecao=objecao)
+    estado_anterior = firestore_client.collection("conversas").document(telefone).get().to_dict()
+    estado_atual = controlar_jornada(mensagem_completa, estado_anterior)
+
+    prompt = montar_prompt_por_etapa(
+        estado_atual["etapa"], mensagem_completa, contexto, BASE_PROMPT, objecao=estado_atual.get("objeção")
+    )
 
     resposta, novos_emojis = gerar_resposta_formatada(prompt, emojis_ja_usados)
     if not resposta:
@@ -100,7 +100,7 @@ def processar_mensagem_da_fila(telefone):
 
     if not salvar_no_firestore(
         telefone, mensagem_completa, resposta_compacta, msg_id,
-        etapa_jornada=etapa, objecao=objecao, consciencia=consciencia
+        etapa_jornada=estado_atual["etapa"], objecao=estado_atual.get("objeção"), consciencia=estado_atual.get("consciência")
     ):
         return
 
