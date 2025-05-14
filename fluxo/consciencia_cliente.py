@@ -32,7 +32,7 @@ def similar(a: str, b: str) -> float:
 def classificar_consciencia(mensagem: str) -> Tuple[Optional[str], Optional[str]]:
     """
     Retorna o nível de consciência e uma justificativa textual.
-    Não define com certeza — apenas gera uma hipótese com base na mensagem.
+    Considera match direto ou similaridade com limiar de 70%.
     """
     texto = mensagem.lower()
     melhor_nivel = None
@@ -45,7 +45,7 @@ def classificar_consciencia(mensagem: str) -> Tuple[Optional[str], Optional[str]
             if padrao_lower in texto:
                 return nivel, f"🔎 Frase identificada: \"{padrao}\""
             score = similar(padrao_lower, texto)
-            if score > 0.78 and score > melhor_score:
+            if score > 0.70 and score > melhor_score:
                 melhor_score = score
                 melhor_nivel = nivel
                 justificativa = f"🤏 Frase semelhante a \"{padrao}\" (similaridade {score:.2f})"
