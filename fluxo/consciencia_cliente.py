@@ -10,7 +10,7 @@ CONSCIENCIA_MAPA = {
         "tenho dores", "me sinto cansado", "tô com dificuldade",
         "não estou bem", "preciso de ajuda com meu corpo"
     ],
-    "solucao_consciente"": [
+    "solucao_consciente": [
         "isso pode ajudar?", "me falaram que resolve", "existe algo pra isso?",
         "o que resolve isso?"
     ],
