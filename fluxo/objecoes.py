@@ -1,5 +1,6 @@
 from typing import Optional
 
+# Objeções diretas e mais explícitas do lead
 OBJECOES_ATIVAS = {
     "Preço": [
         "tá caro", "muito caro", "não tenho dinheiro", "sem grana"
@@ -30,27 +31,27 @@ OBJECOES_ATIVAS = {
     ]
 }
 
+# Evasivas sutis que o lead usa para protelar a decisão
 EVASIVAS = {
-    "evasiva_vou_pensar": [
-        "Vou pensar", "te aviso depois", "vou decidir"
+    "Evasiva: Vou pensar": [
+        "vou pensar", "te aviso depois", "vou decidir"
     ],
-    "Sem resposta": [
-        "..."  # placeholder para ausência
+    "Evasiva: Sem resposta": [
+        "..."  # caso de silêncio ou ausência de reação
     ],
-    "Preciso ver com alguém": [
+    "Evasiva: Preciso ver com alguém": [
         "vou ver com minha esposa", "vou falar com meu médico"
     ],
-    "Esperar salário": [
+    "Evasiva: Esperar salário": [
         "recebo semana que vem", "esperar meu pagamento", "salário cai dia"
     ],
-    "Desconfiança": [
+    "Evasiva: Desconfiança": [
         "tem muita coisa falsa", "não confio muito"
     ],
-    "Teste primeiro": [
+    "Evasiva: Teste primeiro": [
         "posso comprar só um", "testar primeiro", "ver se funciona primeiro"
     ]
 }
-
 
 def identificar_objecao(mensagem: str) -> Optional[str]:
     msg = mensagem.lower()
