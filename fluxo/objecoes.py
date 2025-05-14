@@ -1,14 +1,14 @@
 from typing import Optional, Tuple
+from difflib import SequenceMatcher
 
-# Objeções diretas e explícitas
 OBJECOES_ATIVAS = {
-    "Preço": [
+    "Preco": [
         "tá caro", "muito caro", "não tenho dinheiro", "sem grana", "não posso pagar"
     ],
-    "Confiança": [
+    "Confianca": [
         "nunca ouvi falar", "é seguro?", "isso é confiável", "parece golpe"
     ],
-    "Eficácia": [
+    "Eficacia": [
         "isso funciona mesmo", "tem prova?", "funciona de verdade", "tem garantia que resolve?"
     ],
     "Entrega": [
@@ -17,13 +17,13 @@ OBJECOES_ATIVAS = {
     "Garantia": [
         "posso devolver", "tem garantia", "e se eu não gostar?"
     ],
-    "Composição": [
+    "Composicao": [
         "o que tem nele", "composição", "contra indicação", "tem glúten?"
     ],
     "Forma de pagamento": [
         "não uso pix", "só tenho boleto", "não tenho cartão", "parcelar?"
     ],
-    "Família": [
+    "Familia": [
         "vou falar com meu marido", "minha mãe não deixa", "vou ver com meu pai"
     ],
     "Gravidez": [
@@ -31,7 +31,6 @@ OBJECOES_ATIVAS = {
     ]
 }
 
-# Evasivas comuns que sugerem hesitação
 EVASIVAS = {
     "Evasiva: Vou pensar": [
         "vou pensar", "te aviso depois", "vou decidir", "depois eu vejo"
@@ -49,22 +48,27 @@ EVASIVAS = {
         "tem muita coisa falsa", "não confio muito", "parece bom demais"
     ],
     "Evasiva: Silêncio": [
-        "..."  # ausência de resposta direta
+        "..."
     ]
 }
 
+def similar(a: str, b: str) -> float:
+    return SequenceMatcher(None, a, b).ratio()
 
 def identificar_objecao(mensagem: str) -> Tuple[Optional[str], Optional[str]]:
     texto = mensagem.lower()
+    melhor_match = None
+    melhor_score = 0.0
+    justificativa = None
 
-    for tipo, padroes in OBJECOES_ATIVAS.items():
+    for tipo, padroes in {**OBJECOES_ATIVAS, **EVASIVAS}.items():
         for padrao in padroes:
             if padrao in texto:
-                return tipo, f"🚫 Objeção direta identificada: \"{padrao}\""
+                return tipo, f"🔍 Padrão identificado: \"{padrao}\""
+            score = similar(padrao, texto)
+            if score > 0.7 and score > melhor_score:
+                melhor_match = tipo
+                melhor_score = score
+                justificativa = f"🤏 Similaridade com \"{padrao}\" ({score:.2f})"
 
-    for tipo, padroes in EVASIVAS.items():
-        for padrao in padroes:
-            if padrao in texto:
-                return tipo, f"🌀 Evasiva detectada: \"{padrao}\""
-
-    return None, None
+    return (melhor_match, justificativa) if melhor_match else (None, None)
