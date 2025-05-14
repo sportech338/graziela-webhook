@@ -37,7 +37,7 @@ def quebrar_em_blocos_humanizado(texto, limite=350):
 
 
 def remover_emojis_repetidos(texto, emojis_ja_usados):
-    emojis_validos = ["😊", "💙"]
+    emojis_validos = ["😊", "💙", "😔"]
     novos_emojis_usados = []
 
     for emoji in emojis_validos:
