@@ -1,6 +1,7 @@
 from fluxo.etapas_jornada import identificar_etapa_jornada
 from fluxo.objecoes import identificar_objecao
 from fluxo.consciencia_cliente import classificar_consciencia
+from fluxo.temperatura_lead import classificar_temperatura
 
 # Níveis ordenados de consciência
 NIVEIS_CONSCIENCIA = [
@@ -40,6 +41,7 @@ def controlar_jornada(mensagem: str, contexto: str, estado_anterior: dict = None
     nova_etapa = identificar_etapa_jornada(mensagem)
     nova_objecao = identificar_objecao(mensagem)
     nova_consciencia = classificar_consciencia(mensagem)
+    nova_temperatura = classificar_temperatura(mensagem, contexto)
 
     etapa = nova_etapa or (estado_anterior.get("etapa") if estado_anterior else None)
 
@@ -55,8 +57,11 @@ def controlar_jornada(mensagem: str, contexto: str, estado_anterior: dict = None
     consciencia_anterior = estado_anterior.get("consciência") if estado_anterior else None
     consciencia = avaliar_evolucao_consciencia(nova_consciencia, consciencia_anterior)
 
+    temperatura = nova_temperatura or (estado_anterior.get("temperatura") if estado_anterior else None)
+
     return {
         "etapa": etapa,
         "objeção": objecao,
-        "consciência": consciencia
+        "consciência": consciencia,
+        "temperatura": temperatura
     }
