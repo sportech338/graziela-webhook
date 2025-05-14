@@ -53,7 +53,7 @@ def processar_mensagem_da_fila(telefone):
 
     prompt = montar_prompt_por_etapa(
         etapa=estado_atual["etapa"],
-        mensagem=mensagem_completa,
+        mensagem_cliente=mensagem_completa,
         contexto=contexto,
         base_prompt=BASE_PROMPT,
         objecao=estado_atual.get("objeção"),
@@ -102,5 +102,5 @@ def processar_mensagem_da_fila(telefone):
     registrar_no_sheets(telefone, mensagem_completa, resposta_compacta)
     temp_ref.delete()
     firestore_client.collection("status_threads").document(telefone).delete()
-    print("🩹 Fila temporária limpa.")
+    print("🧹 Fila temporária limpa.")
     print("🔁 Thread finalizada e status limpo.")
