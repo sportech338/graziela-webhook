@@ -57,6 +57,7 @@ def processar_mensagem_da_fila(telefone):
         contexto=contexto,
         base_prompt=BASE_PROMPT,
         objecao=estado_atual.get("objeção"),
+        justificativa_objecao=estado_atual.get("justificativa_objecao"),
         ambiguidade_justificativa=estado_atual.get("justificativa_ambiguidade")
     )
 
@@ -102,5 +103,5 @@ def processar_mensagem_da_fila(telefone):
     registrar_no_sheets(telefone, mensagem_completa, resposta_compacta)
     temp_ref.delete()
     firestore_client.collection("status_threads").document(telefone).delete()
-    print("🧹 Fila temporária limpa.")
+    print("🩹 Fila temporária limpa.")
     print("🔁 Thread finalizada e status limpo.")
