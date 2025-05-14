@@ -1,94 +1,118 @@
-from fluxo.etapas_jornada import identificar_etapa_jornada
-from fluxo.objecoes import identificar_objecao
-from fluxo.consciencia_cliente import classificar_consciencia
-from fluxo.temperatura import classificar_temperatura
-from fluxo.ambiguidade import detectar_sinais_ambiguidade
+import re
+from typing import Optional
+from fluxo.servicos.openai_client import gerar_resposta
+from fluxo.etapas_jornada import ETAPAS_JORNADA
 
-# Ordem evolutiva dos níveis de consciência
-NIVEIS_CONSCIENCIA = [
-    "inconsciente",
-    "problema_consciente",
-    "solucao_consciente",
-    "produto_consciente",
-    "pronto_para_compra"
+FRASES_PROIBIDAS = [
+    "se tiver dúvidas, estou à disposição",
+    "me chama se quiser",
+    "qualquer coisa, estou por aqui"
 ]
 
-def objeção_foi_contornada(ultima_objeção: str, contexto: str) -> bool:
-    if not ultima_objeção:
-        return True
+def contem_frase_proibida(texto: str) -> bool:
+    texto_lower = texto.lower()
+    return any(frase in texto_lower for frase in FRASES_PROIBIDAS)
 
-    texto = contexto.lower()
-    sinais_positivos = ["entendi", "faz sentido", "vou comprar", "ok", "beleza"]
-    sinais_de_troca = ["mudando de assunto", "seguinte", "outra coisa"]
+def remover_emojis_repetidos(texto: str, emojis_ja_usados: list[str]) -> tuple[str, list[str]]:
+    emojis_validos = ["😊", "💙"]
+    novos_emojis_usados = []
 
-    if any(s in texto for s in sinais_positivos + sinais_de_troca):
-        return True
+    for emoji in emojis_validos:
+        ocorrencias = [m.start() for m in re.finditer(re.escape(emoji), texto)]
+        if emoji in emojis_ja_usados and ocorrencias:
+            texto = texto.replace(emoji, "", len(ocorrencias))
+        elif ocorrencias:
+            texto = texto.replace(emoji, "", len(ocorrencias) - 1)
+            novos_emojis_usados.append(emoji)
 
-    return ultima_objeção.lower() not in texto
+    return texto, novos_emojis_usados
 
-def avaliar_evolucao_consciencia(nova: str, anterior: str) -> str:
-    if not nova:
-        return anterior
-    if not anterior:
-        return nova
+def gerar_resposta_formatada(prompt: list[dict], emojis_ja_usados: list[str]) -> tuple[Optional[str], list[str]]:
+    resposta = gerar_resposta(prompt)
+    if not resposta:
+        return None, []
 
-    try:
-        idx_nova = NIVEIS_CONSCIENCIA.index(nova)
-        idx_antiga = NIVEIS_CONSCIENCIA.index(anterior)
-        return nova if idx_nova > idx_antiga else anterior
-    except ValueError:
-        return anterior
+    resposta, novos_emojis = remover_emojis_repetidos(resposta, emojis_ja_usados)
 
-def controlar_jornada(mensagem: str, contexto: str, estado_anterior: dict = None) -> dict:
-    texto_total = f"{contexto} {mensagem}".strip().lower()
+    if contem_frase_proibida(resposta):
+        print("⚠️ Frase passiva detectada. Solicitando reformulação automática.")
+        reformulacao_prompt = [
+            {"role": "system", "content": "Você é Graziela, consultora da Sportech. Reformule a mensagem anterior."},
+            {"role": "user", "content": f"""Essa foi a resposta que você deu:
 
-    etapa, justificativa_etapa = identificar_etapa_jornada(texto_total)
-    objecao, justificativa_objecao = identificar_objecao(texto_total)
-    consciencia, justificativa_consciencia = classificar_consciencia(texto_total)
-    temperatura, justificativa_temperatura = classificar_temperatura(mensagem)
-    ambiguidade_detectada, justificativa_ambiguidade = detectar_sinais_ambiguidade(mensagem)
+{resposta}
 
-    if estado_anterior:
-        if not ambiguidade_detectada and etapa:
-            etapa_atual = etapa
-            justificativa_etapa_atual = justificativa_etapa
-        else:
-            etapa_atual = estado_anterior.get("etapa")
-            justificativa_etapa_atual = estado_anterior.get("justificativa_etapa")
+⚠️ Ela termina com uma frase passiva que não conduz a conversa.
 
-        objecao_anterior = estado_anterior.get("objeção")
-        if objecao_anterior and objeção_foi_contornada(objecao_anterior, texto_total):
-            objecao_atual = None
-            justificativa_objecao_atual = None
-        else:
-            objecao_atual = objecao or objecao_anterior
-            justificativa_objecao_atual = justificativa_objecao or estado_anterior.get("justificativa_objecao")
+Reescreva com tom gentil, mas encerrando com uma pergunta clara que incentive a continuidade da conversa.
 
-        consciencia_atual = avaliar_evolucao_consciencia(consciencia, estado_anterior.get("consciência"))
-        justificativa_consciencia_atual = justificativa_consciencia or estado_anterior.get("justificativa_consciencia")
+Blocos curtos (máx. 350 caracteres) separados por duas quebras de linha."""}
+        ]
+        nova_resposta = gerar_resposta(reformulacao_prompt, temperatura=0.4)
+        if nova_resposta:
+            resposta, novos_emojis = remover_emojis_repetidos(nova_resposta, emojis_ja_usados)
 
-        temperatura_atual = temperatura or estado_anterior.get("temperatura")
-        justificativa_temperatura_atual = justificativa_temperatura or estado_anterior.get("justificativa_temperatura")
+    return resposta, novos_emojis
 
-    else:
-        etapa_atual = etapa
-        justificativa_etapa_atual = justificativa_etapa
-        objecao_atual = objecao
-        justificativa_objecao_atual = justificativa_objecao
-        consciencia_atual = consciencia
-        justificativa_consciencia_atual = justificativa_consciencia
-        temperatura_atual = temperatura
-        justificativa_temperatura_atual = justificativa_temperatura
+def montar_prompt_por_etapa(
+    etapa: str,
+    mensagem_cliente: str,
+    contexto: str,
+    base_prompt: str,
+    objecao: Optional[str] = None,
+    justificativa_objecao: Optional[str] = None,
+    ambiguidade_justificativa: Optional[str] = None,
+    justificativa_etapa: Optional[str] = None,
+    consciencia: Optional[str] = None,
+    justificativa_consciencia: Optional[str] = None,
+    temperatura: Optional[str] = None,
+    justificativa_temperatura: Optional[str] = None
+) -> list[dict]:
+    prompt = [{"role": "system", "content": base_prompt}]
 
-    return {
-        "etapa": etapa_atual,
-        "justificativa_etapa": justificativa_etapa_atual,
-        "objeção": objecao_atual,
-        "justificativa_objecao": justificativa_objecao_atual,
-        "consciência": consciencia_atual,
-        "justificativa_consciencia": justificativa_consciencia_atual,
-        "temperatura": temperatura_atual,
-        "justificativa_temperatura": justificativa_temperatura_atual,
-        "ambiguidade": ambiguidade_detectada,
-        "justificativa_ambiguidade": justificativa_ambiguidade
-    }
+    if contexto:
+        prompt.append({
+            "role": "user",
+            "content": f"Histórico da conversa até aqui:\n{contexto}"
+        })
+
+    if ambiguidade_justificativa:
+        prompt.append({
+            "role": "user",
+            "content": f"⚠️ Atenção: Pode haver ambiguidade, dúvida ou ironia na última mensagem.\n\n{ambiguidade_justificativa}\n\nUse o histórico para validar se é o caso e responda de forma empática e clara."
+        })
+
+    if objecao:
+        justificativa_txt = f"\n\nContexto adicional: {justificativa_objecao}" if justificativa_objecao else ""
+        prompt.append({
+            "role": "user",
+            "content": f"⚠️ Objeção detectada: {objecao.replace("_", " ").capitalize()}.{justificativa_txt}\n\nAntes de seguir normalmente, contorne a objeção com empatia, prova social e reforço de confiança.\n\nSó depois retome o fluxo com condução leve e consultiva.\n\n⚠️ Use blocos curtos (máx. 350 caracteres), com duas quebras de linha entre eles."
+        })
+
+    if etapa:
+        justificativa_etapa_txt = f"\nJustificativa da etapa sugerida: {justificativa_etapa}" if justificativa_etapa else ""
+        prompt.append({
+            "role": "user",
+            "content": f"Etapa sugerida: {etapa}.{justificativa_etapa_txt}"
+        })
+
+    if consciencia:
+        justificativa_consciencia_txt = f"\nJustificativa da consciência sugerida: {justificativa_consciencia}" if justificativa_consciencia else ""
+        prompt.append({
+            "role": "user",
+            "content": f"Nível de consciência sugerido: {consciencia}.{justificativa_consciencia_txt}"
+        })
+
+    if temperatura:
+        justificativa_temperatura_txt = f"\nJustificativa da temperatura sugerida: {justificativa_temperatura}" if justificativa_temperatura else ""
+        prompt.append({
+            "role": "user",
+            "content": f"Temperatura do cliente: {temperatura}.{justificativa_temperatura_txt}"
+        })
+
+    prompt.append({
+        "role": "user",
+        "content": f"Nova mensagem do cliente:\n{mensagem_cliente}\n\nResponda com empatia, leveza e estratégia. Evite frases passivas. Finalize com uma pergunta clara que incentive a continuidade.\n\nBlocos curtos (máx. 350 caracteres), com quebras de linha se fizer sentido."
+    })
+
+    return prompt
