@@ -1,7 +1,7 @@
 from fluxo.etapas_jornada import identificar_etapa_jornada
 from fluxo.objecoes import identificar_objecao
 from fluxo.consciencia_cliente import classificar_consciencia
-from fluxo.temperatura_lead import classificar_temperatura
+from fluxo.temperatura import classificar_temperatura
 
 # Níveis ordenados de consciência
 NIVEIS_CONSCIENCIA = [
