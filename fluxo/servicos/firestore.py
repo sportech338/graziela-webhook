@@ -12,7 +12,7 @@ if not os.path.exists(CREDENTIALS_PATH):
 firestore_client = firestore.Client.from_service_account_json(CREDENTIALS_PATH)
 
 
-def salvar_no_firestore(telefone, mensagem_cliente, resposta_ia, msg_id, etapa_jornada, objecao=None, consciencia=None):
+def salvar_no_firestore(telefone, mensagem_cliente, resposta_ia, msg_id, etapa_jornada, objecao=None, consciencia=None, temperatura=None):
     try:
         print("📝 Iniciando salvamento no Firestore...")
 
@@ -64,11 +64,12 @@ def salvar_no_firestore(telefone, mensagem_cliente, resposta_ia, msg_id, etapa_j
             dados_salvos["objeção"] = objecao
         if consciencia:
             dados_salvos["consciência"] = consciencia
+        if temperatura:
+            dados_salvos["temperatura"] = temperatura
 
         print("🧾 Dados que serão salvos:", dados_salvos)
 
         doc_ref.set(dados_salvos)
-
         print("📦 Mensagens salvas no Firestore com sucesso.")
         return True
 
