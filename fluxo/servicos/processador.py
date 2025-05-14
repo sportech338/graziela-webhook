@@ -17,20 +17,22 @@ from fluxo.base_prompt import BASE_PROMPT
 from fluxo.servicos.controle_jornada import controlar_jornada
 
 ETAPAS_DELAY = {
-    "inicio": 15,
-    "coletando_dados_pessoais": 120,
-    "coletando_endereco": 120,
+    "abordagem_inicial": 15,
+    "coleta_dados_pessoais": 120,
+    "coleta_endereco": 120,
     "pagamento_realizado": 25,
-    "aguardando_pagamento": 30,
-    "resistencia_financeira": 20
+    "aguardando_pagamento": 30
 }
 
-def quebrar_em_blocos_humanizado(texto, limite=350):
-    blocos, tempos = [], []
+def quebrar_em_blocos_humanizado(texto, etapa=None, limite=350):
+    blocos = []
+    tempos = []
+
     for trecho in texto.split("\n\n"):
         trecho = trecho.strip()
         if not trecho:
             continue
+
         if len(trecho) <= limite:
             blocos.append(trecho)
         else:
@@ -47,13 +49,14 @@ def quebrar_em_blocos_humanizado(texto, limite=350):
 
     for i, bloco in enumerate(blocos):
         if i == 0:
-            tempos.append(ETAPAS_DELAY.get("inicio", 15))
+            tempos.append(ETAPAS_DELAY.get(etapa, 15))
         elif len(bloco) > 250:
             tempos.append(6)
         elif len(bloco) > 100:
             tempos.append(4)
         else:
             tempos.append(2)
+
     return blocos, tempos
 
 def iniciar_processamento(telefone):
@@ -90,14 +93,13 @@ def processar_mensagem_da_fila(telefone):
 
     estado_atual = controlar_jornada(mensagem_completa, contexto, estado_anterior)
 
-    # Prompt com reforço de ambiguidade, se houver
     prompt = montar_prompt_por_etapa(
         etapa=estado_atual["etapa"],
         mensagem=mensagem_completa,
         contexto=contexto,
         base_prompt=BASE_PROMPT,
         objecao=estado_atual.get("objeção"),
-        ambiguidade_justificativa=estado_atual.get("justificativa_ambiguidade")  # 🔎 opcional, melhora decisão da IA
+        ambiguidade_justificativa=estado_atual.get("justificativa_ambiguidade")
     )
 
     resposta, novos_emojis = gerar_resposta_formatada(prompt, emojis_ja_usados)
@@ -106,7 +108,7 @@ def processar_mensagem_da_fila(telefone):
         return
 
     resposta_normalizada = re.sub(r'(\\n|\\r|\\r\\n|\r\n|\r|\n)', '\n', resposta)
-    blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada)
+    blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, etapa=estado_atual["etapa"])
     resposta_compacta = "\n\n".join(blocos)
 
     sucesso = salvar_no_firestore(
