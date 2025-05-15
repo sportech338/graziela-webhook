@@ -585,21 +585,6 @@ def processar_mensagem(telefone):
     print(f"🧩 Mensagem completa da fila: {mensagem_completa}")
     
     etapa = "inicio"
-    mensagem_lower = mensagem_completa.lower()   
-    if any(p in mensagem_lower for p in ["me conta", "frustrante", "difícil", "tô cansado", "não aguento mais", "complicado", "sofrido", "me atrapalha", "angustiante", "desesperador"]):
-        etapa = "momento_conexao"
-    elif any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "tem desconto"]):
-        etapa = "apresentando_preço"
-    elif all(p in mensagem_lower for p in ["nome", "cpf", "telefone"]) and any(p in mensagem_lower for p in ["email", "e-mail"]):
-        etapa = "coletando_dados_pessoais"
-    elif all(p in mensagem_lower for p in ["cep", "endereço", "número", "bairro", "cidade"]):
-        etapa = "coletando_endereco"
-    elif any(p in mensagem_lower for p in ["pix", "transferência", "como pagar", "cartao"]):
-        etapa = "metodo_pagamento"
-    elif any(p in mensagem_lower for p in ["vou pagar", "qual a chave"]):
-        etapa = "aguardando_pagamento"
-    elif any(p in mensagem_lower for p in ["paguei", "tá pago", "comprovante", "enviei", "já fiz o pagamento"]):
-        etapa = "pagamento_confirmado"
 
     prompt = [{"role": "system", "content": BASE_PROMPT}]
     contexto, emojis_ja_usados = obter_contexto(telefone)
@@ -788,21 +773,53 @@ Mantenha os blocos curtos com até 350 caracteres e separados por **duas quebras
         "coletando_dados_pessoais": 120,
         "coletando_endereco": 120,
         "pagamento_realizado": 25,
-        "aguardando_pagamento": 30,
-        "resistencia_financeira": 20
+        "aguardando_pagamento": 30
     }
     delay_inicial = etapas_delay.get(etapa, 15)
     if tempos:
         tempos[0] = delay_inicial
 
-    if etapa == "inicio":
-        resposta_lower = resposta.lower()
-        if re.search(r"vou precisar.*dados", resposta_lower):
-            etapa = "coletando_dados_pessoais"
-        elif "endereço completo" in resposta_lower:
-            etapa = "coletando_endereco"
-        elif "prefere pix" in resposta_lower:
-            etapa = "pergunta_forma_pagamento"
+if etapa == "inicio":
+    resposta_lower = resposta.lower()
+
+    if any(p in resposta_lower for p in [
+        "imagino o quanto", "isso impacta", "entendo demais", "pesado conviver",
+        "vamos juntas encontrar", "diz muito sobre você", "abrir mão disso", "deve ser difícil conviver"
+    ]):
+        etapa = "momento_conexao"
+
+    elif any(p in resposta_lower for p in [
+        "com base no que você compartilhou", "posso te mostrar os kits",
+        "vou te apresentar as opções", "valores são", "kit mais vendido", "custam", "valor", "preço", "quanto custa", "tem desconto"
+    ]):
+        etapa = "apresentando_preço"
+
+    elif any(p in resposta_lower for p in [
+        "vou precisar dos seus dados", "preciso de algumas informações suas",
+        "pra garantir seu pedido", "vamos garantir seu pedido", "dados pessoais", "nome completo", "cpf", "telefone com ddd"
+    ]):
+        etapa = "coletando_dados_pessoais"
+
+    elif any(p in resposta_lower for p in [
+        "vamos precisar do seu endereço", "endereço completo", "cep", "número", "bairro", "complemento (opcional)"
+    ]):
+        etapa = "coletando_endereco"
+
+    elif any(p in resposta_lower for p in [
+        "prefere pix", "cartão em até 12x", "forma de pagamento", "como prefere pagar"
+    ]):
+        etapa = "metodo_pagamento"
+
+    elif any(p in resposta_lower for p in [
+        "vou te passar a chave pix", "chave pix (cnpj)", "abaixo segue a chave", "para garantir seu pedido via pix"
+    ]):
+        etapa = "aguardando_pagamento"
+
+    elif any(p in resposta_lower for p in [
+        "me envia o comprovante", "confirmar rapidinho no sistema", "envia aqui o pagamento", "assim consigo confirmar"
+    ]):
+        etapa = "pagamento_confirmado"
+
 
     doc_ref = firestore_client.collection("conversas").document(telefone)
     doc = doc_ref.get()
