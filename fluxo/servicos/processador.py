@@ -69,8 +69,30 @@ def processar_mensagem_da_fila(telefone):
         print("❌ Erro ao gerar resposta. Abortando.")
         return
 
-    resposta_normalizada = re.sub(r'(\\n|\\r|\\r\\n|\r\n|\r|\n)', '\n', resposta)
-    blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, etapa=estado_atual["etapa"])
+    # Separa a resposta para cliente do bloco de dados
+    partes = resposta.strip().rsplit("---", maxsplit=1)
+    mensagem_cliente_final = partes[0].strip()
+    bloco_dados = partes[1].strip() if len(partes) > 1 else ""
+
+    etapa = estado_atual["etapa"]
+    consciencia = estado_atual.get("consciência")
+    temperatura = estado_atual.get("temperatura")
+    objecao = estado_atual.get("objeção")
+    ambiguidade = estado_atual.get("ambiguidade")
+
+    for linha in bloco_dados.splitlines():
+        if linha.lower().startswith("etapa:"):
+            etapa = linha.split(":", 1)[1].strip()
+        elif linha.lower().startswith("consciência:"):
+            consciencia = linha.split(":", 1)[1].strip()
+        elif linha.lower().startswith("temperatura:"):
+            temperatura = linha.split(":", 1)[1].strip()
+        elif linha.lower().startswith("objeção:"):
+            objecao = linha.split(":", 1)[1].strip()
+        elif linha.lower().startswith("ambiguidade:"):
+            ambiguidade = linha.split(":", 1)[1].strip().lower() == "true"
+
+    blocos, tempos = quebrar_em_blocos_humanizado(mensagem_cliente_final, etapa=etapa)
     resposta_compacta = "\n\n".join(blocos)
 
     sucesso = salvar_no_firestore(
@@ -78,10 +100,10 @@ def processar_mensagem_da_fila(telefone):
         mensagem_cliente=mensagem_completa,
         resposta_ia=resposta_compacta,
         msg_id=msg_id,
-        etapa_jornada=estado_atual["etapa"],
-        objecao=estado_atual.get("objeção"),
-        consciencia=estado_atual.get("consciência"),
-        temperatura=estado_atual.get("temperatura"),
+        etapa_jornada=etapa,
+        objecao=objecao,
+        consciencia=consciencia,
+        temperatura=temperatura,
         justificativa_objecao=estado_atual.get("justificativa_objecao"),
         justificativa_consciencia=estado_atual.get("justificativa_consciencia"),
         justificativa_temperatura=estado_atual.get("justificativa_temperatura"),
