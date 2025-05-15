@@ -272,42 +272,42 @@ def analisar_estado_comportamental(mensagem, tentativas=1, followup_em_aberto=Fa
     mensagem = mensagem.lower()
 
     # 🔍 Nível de Consciência
-    if any(p in mensagem for p in ["dói", "dor", "não consigo", "sofro com", "me incomoda", "não aguento", "preciso de ajuda", "não consigo andar", "não consigo dormir"]):
-        consciencia = "consciente da dor"
+    if any(p in mensagem for p in ["o que é isso", "pra que serve", "me explica melhor", "nunca ouvi falar", "minha mãe que mandou", "só vi o anúncio", "tava só olhando", "não sei do que se trata"]):
+        consciencia = "Inconsciente"
+    if any(p in mensagem for p in ["dói muito", "dor no", "minha dor", "tá doendo", "não consigo andar", "não consigo dormir",  "tô cansado dessa dor", "essa dor me atrapalha", "uso remédio todo dia", "já tentei várias coisas"]):
+        consciencia = "Consciente da dor"
     elif any(p in mensagem for p in ["já tentei de tudo", "nada funciona", "nada resolve", "já usei isso", "já comprei", "não resolveu"]):
-        consciencia = "consciente da solução"
-    elif any(p in mensagem for p in ["vi o anúncio", "como funciona", "quero saber mais", "me interessei", "flexlive"]):
-        consciencia = "consciente do produto"
+        consciencia = "Consciente da solução"
+    elif any(p in mensagem for p in ["Tenho interesse", "quero o flexlive", "quero o de 30", "qual o melhor kit", "me manda o link", "prefiro pix", "qual a diferença dos kits", "tem o de 60 peças"]):
+        consciencia = "Consciente do produto"
+    elif any(p in mensagem for p in ["já fiz o pix", "pode fechar", "quero fechar hoje", "meu cpf é", "vou querer o de 120",  "pode mandar", "quero garantir o meu", "vou comprar agora"]):
+        consciencia = "Pronto para compra"
     else:
-        consciencia = "pouco consciente"
+        consciencia = "Neutro"
 
     # 🙅 Objeções
-    if any(p in mensagem for p in ["caro", "muito caro", "tá caro", "sem dinheiro", "não posso pagar", "desconto", "tem mais barato", "valor alto"]):
-        objecao = "preço"
-    elif any(p in mensagem for p in ["funciona mesmo", "não acredito", "parece golpe", "é seguro?", "tem garantia", "tem registro", "parece mentira"]):
-        objecao = "credibilidade"
-    elif any(p in mensagem for p in ["vou pensar", "depois eu vejo", "te chamo mais tarde", "vou falar com meu marido", "ainda não sei", "talvez", "estou indecisa"]):
-        objecao = "tempo ou prioridade"
-    elif any(p in mensagem for p in ["não posso", "não quero", "não me interessa", "não serve pra mim", "não preciso", "não ajuda", "já estou tratando"]):
-        objecao = "necessidade"
+    if any(p in mensagem for p in ["caro", "muito caro", "tá caro", "sem dinheiro", "não posso pagar", "desconto", "tem mais barato", "valor alto", "muito alto", "difícil pra mim agora"]):
+        objecao = "Preço"
+    elif any(p in mensagem for p in ["funciona mesmo", "parece golpe", "tem garantia", "é seguro", "parece mentira",  "não acredito", "é confiável", "não confio", "medo de comprar", "tem registro",  "tenho receio", "parece arriscado", "já fui enganado", "não conheço a empresa"]):
+        objecao = "Confiança"
+    elif any(p in mensagem for p in ["vou pensar", "depois eu vejo", "te chamo mais tarde", "vou falar com meu marido",  "ainda não sei", "talvez", "estou indecisa", "estou em dúvida", "quem sabe depois",  "mais pra frente", "agora não dá", "depois eu volto", "vou decidir ainda"]):
+        objecao = "Indecisão"
+    elif any(p in mensagem for p in ["não posso", "não quero", "não me interessa", "não serve pra mim", "não preciso",  "não ajuda", "já estou tratando", "não tenho dor", "já uso outro", "não vejo necessidade",  "já resolvi meu problema", "não uso essas coisas"]):
+        objecao = "Necessidade"
     else:
-        objecao = "nenhuma aparente"
+        objecao = "Nenhuma aparente"
 
     # 🏷️ Etiqueta (Status Comercial)
-    if "comprovante" in mensagem or "paguei" in mensagem or "tá pago" in mensagem:
-        etiqueta = "pagamento confirmado"
-    elif any(p in mensagem for p in ["pix", "boleto", "cartão", "como pagar", "me passa a chave", "forma de pagamento"]):
-        etiqueta = "aguardando pagamento"
-    elif any(p in mensagem for p in ["meu endereço é", "cep", "número", "bairro", "cidade"]) or "rua" in mensagem:
-        etiqueta = "coletando endereço"
-    elif any(p in mensagem for p in ["cpf", "nome", "telefone", "e-mail", "email"]):
-        etiqueta = "coletando dados pessoais"
+    if tentativas >= 18 or any(frase in mensagem for frase in ["não quero mais", "cancela", "desiste", "quero cancelar"]):
+        etiqueta = "Venda perdida"
+    elif any(p in mensagem for p in ["comprovante", "paguei", "tá pago", "já fiz o pix", "enviei o pagamento"]):
+        etiqueta = "Venda feita"
+    elif any(p in mensagem for p in ["me chama", "às", "as ", "dia", "horário", "horas", "às ", "as ", "amanhã", "depois das", "semana que vem"]):
+        etiqueta = "Agendado"
     elif "valor" in mensagem or "preço" in mensagem or "quanto custa" in mensagem:
-        etiqueta = "solicitou preço"
-    elif followup_em_aberto and tentativas >= 3:
-        etiqueta = "resgate necessário"
-    elif followup_em_aberto:
-        etiqueta = "em acompanhamento"
+        etiqueta = "Em negociação"
+    elif any(p in mensagem for p in ["como funciona", "é eficaz", "tem efeito", "funciona mesmo", "qual a diferença", "ajuda com dor", "qual o benefício", "é bom"]):
+        etiqueta = "Interessado"
     else:
         etiqueta = "em atendimento"
 
