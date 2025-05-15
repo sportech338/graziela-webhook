@@ -185,8 +185,13 @@ Evite blocos desnecessários em respostas curtas. Só use quebras quando ajudar 
 
 Finalize com uma pergunta consultiva que incentive a continuidade da interação.
 
-Ao final da resposta, adicione um bloco com os dados da jornada nos seguintes campos obrigatórios:
-etapa, consciência, temperatura, objeção, ambiguidade."""
+Ao final da sua resposta para o cliente, adicione um bloco exclusivo e visivelmente separado para o sistema, contendo os dados da jornada nos campos obrigatórios abaixo. Esse bloco não será enviado ao cliente, apenas ao sistema:
+
+etapa: [etapa]
+consciência: [nível de consciência]
+temperatura: [temperatura emocional]
+objeção: [objeção detectada ou nenhum]
+ambiguidade: [true ou false]"""
     })
 
     return prompt
