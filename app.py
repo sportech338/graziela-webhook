@@ -24,9 +24,11 @@ Você atua como uma vendedora de alta performance: escuta com verdade, entende o
 Mais do que atender pedidos, você entende o que a pessoa realmente precisa — e conduz com empatia até a solução ideal.  
 A venda é consequência de conexão + clareza. Você nunca força. Você guia.  
 
-✨ ABERTURA DE CONVERSA  
+✨ CONVERSA
 Ao receber a primeira mensagem do cliente, inicie com presença e leveza.  
 Apresente-se e abra espaço para escuta ativa. Nunca inicie oferecendo produto.  
+Responda sempre como se estivesse conversando no WhatsApp. Use \\n\\n para separar ideias quando sentir que uma pausa deixaria a conversa mais leve e fluida.
+Se a resposta for mais curta ou direta, use apenas um bloco. Se estiver orientando, acolhendo ou conduzindo, quebre em dois ou mais blocos, sempre com naturalidade — como você falaria com alguém em atendimento humano e empático.
 
 Exemplos:  
 "Oii! Me chamo Graziela e estarei cuidando do seu atendimento. Pode me contar com calma: o que tem te incomodado mais?"  
@@ -233,6 +235,7 @@ Graziela não vende produto. Ela transforma realidades.
 Ela escuta, entende, recomenda e conduz com intenção.  
 Cada conversa é uma chance de devolver mobilidade e bem-estar. A venda é a consequência. A transformação é o objetivo.  
 🌟 Lembre-se: cada conversa pode ser a virada de chave para alguém voltar a andar, a trabalhar ou simplesmente viver com mais dignidade. Conduza com o coração, a clareza e a presença que a situação merece."""
+
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 SPREADSHEET_NAME = "Histórico de conversas | Graziela"
 
@@ -630,50 +633,6 @@ def processar_mensagem(telefone):
     else:
         emojis_ja_usados = []
 
-if etapa in ["momento_conexao"]:
-        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
-{mensagem_completa}
-
-Responda como se estivesse conversando no WhatsApp. Use \\n\\n para separar ideias quando sentir que uma pausa deixaria a conversa mais leve e fluida.
-Se a resposta for mais curta ou direta, use apenas um bloco. Se estiver orientando, acolhendo ou conduzindo, quebre em dois ou mais blocos, sempre com naturalidade — como você falaria com alguém em atendimento humano e empático."""})
-
-    if etapa == "apresentando_preço":
-        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
-{mensagem_completa}
-
-Responda como se estivesse conversando no WhatsApp. Use \\n\\n para separar ideias quando sentir que uma pausa deixaria a conversa mais leve e fluida.
-Se a resposta for mais curta ou direta, use apenas um bloco. Se estiver orientando, acolhendo ou conduzindo, quebre em dois ou mais blocos, sempre com naturalidade — como você falaria com alguém em atendimento humano e empático."""})
-
-    elif etapa == "coletando_dados_pessoais":
-        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
-{mensagem_completa}
-
-Responda como se estivesse conversando no WhatsApp. Use \\n\\n para separar ideias quando sentir que uma pausa deixaria a conversa mais leve e fluida.
-Se a resposta for mais curta ou direta, use apenas um bloco. Se estiver orientando, acolhendo ou conduzindo, quebre em dois ou mais blocos, sempre com naturalidade — como você falaria com alguém em atendimento humano e empático."""})
-
-    elif etapa == "coletando_endereco":
-        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
-{mensagem_completa}
-
-Responda como se estivesse conversando no WhatsApp. Use \\n\\n para separar ideias quando sentir que uma pausa deixaria a conversa mais leve e fluida.
-Se a resposta for mais curta ou direta, use apenas um bloco. Se estiver orientando, acolhendo ou conduzindo, quebre em dois ou mais blocos, sempre com naturalidade — como você falaria com alguém em atendimento humano e empático."""})
-
-    elif etapa == "metodo_pagamento":
-        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
-{mensagem_completa}
-
-Responda como se estivesse conversando no WhatsApp. Use \\n\\n para separar ideias quando sentir que uma pausa deixaria a conversa mais leve e fluida.
-Se a resposta for mais curta ou direta, use apenas um bloco. Se estiver orientando, acolhendo ou conduzindo, quebre em dois ou mais blocos, sempre com naturalidade — como você falaria com alguém em atendimento humano e empático.
-"""})
-
-    else:
-        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
-{mensagem_completa}
-
-Responda como se estivesse conversando no WhatsApp. Use \\n\\n para separar ideias quando sentir que uma pausa deixaria a conversa mais leve e fluida.
-Se a resposta for mais curta ou direta, use apenas um bloco. Se estiver orientando, acolhendo ou conduzindo, quebre em dois ou mais blocos, sempre com naturalidade — como você falaria com alguém em atendimento humano e empático.
-"""})
-
     completion = client.chat.completions.create(
         model="gpt-4o",
         messages=prompt,
@@ -756,6 +715,7 @@ Mantenha os blocos curtos com até 350 caracteres e separados por **duas quebras
     whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
     headers = {
         "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN']}",
+        
         "Content-Type": "application/json"
     }
 
