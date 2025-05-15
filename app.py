@@ -685,8 +685,9 @@ Mantenha os blocos curtos com até 350 caracteres e separados por **duas quebras
             print(f"❌ Erro ao reformular resposta: {e}")
             resposta += "\n\n(Por favor, reformule com uma pergunta clara ao final)"
 
-    resposta_normalizada = re.sub(r'(\\n|\\r|\\r\\n|\r\n|\r|\n)', '\n', resposta)
+    resposta_normalizada = resposta.replace("\\n\\n", "\n\n").replace("\\n", "\n")
     blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, limite=350)
+    print(f"🔹 Blocos finais para envio:\n{json.dumps(blocos, indent=2, ensure_ascii=False)}")
     resposta_compacta = "\n\n".join(blocos)
 
     etapas_delay = {
