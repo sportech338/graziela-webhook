@@ -589,7 +589,7 @@ def processar_mensagem(telefone):
     elif all(p in mensagem_lower for p in ["cep", "endereço", "número", "bairro", "cidade"]):
         etapa = "coletando_endereco"
     elif any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "tem desconto"]):
-        etapa = "solicitou_valor"
+        etapa = "apresentando_valor"
     elif any(p in mensagem_lower for p in [
         "quero comprar", "vou querer", "quero esse", "quero sim", "sim quero", 
         "sim por favor", "quero o de", "pode ser esse", "pode ser o de", "vou ficar com"
