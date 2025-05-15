@@ -634,7 +634,7 @@ Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergun
         prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
 {mensagem_completa}
 
-IMPORTANTE: Não apresentar preço se ainda não tiver gerado valor! Acolha o cliente com empatia e segurança emocional.  
+IMPORTANTE: Não apresentar preço se ainda não tiver gerado valor! Concorde com o cliente, acolha com empatia e segurança emocional.  
 Mostre que você entendeu o que ele sente e que o foco é aliviar essa dor com responsabilidade.
 
 ⚠️ Use no máximo 3 frases curtas por bloco, com até 350 caracteres cada.  
