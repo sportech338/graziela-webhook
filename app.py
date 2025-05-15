@@ -481,11 +481,51 @@ def remover_emojis_repetidos(texto, emojis_ja_usados):
         if emoji in emojis_ja_usados and ocorrencias:
             texto = texto.replace(emoji, "", len(ocorrencias))  # remove todas
         elif ocorrencias:
-            # deixa só a primeira ocorrência
             texto = texto.replace(emoji, "", len(ocorrencias) - 1)
             novos_emojis_usados.append(emoji)
 
     return texto, novos_emojis_usados
+
+def identificar_proxima_etapa(resposta_lower):
+    if any(p in resposta_lower for p in [
+        "imagino o quanto", "isso impacta", "entendo demais", "pesado conviver",
+        "vamos juntas encontrar", "diz muito sobre você", "abrir mão disso", "deve ser difícil conviver"
+    ]):
+        return "momento_conexao"
+    
+    elif any(p in resposta_lower for p in [
+        "com base no que você compartilhou", "posso te mostrar os kits",
+        "vou te apresentar as opções", "valores são", "kit mais vendido", "custam", "valor", "preço", "quanto custa", "tem desconto"
+    ]):
+        return "apresentando_preço"
+    
+    elif any(p in resposta_lower for p in [
+        "vou precisar dos seus dados", "preciso de algumas informações suas",
+        "pra garantir seu pedido", "vamos garantir seu pedido", "dados pessoais", "nome completo", "cpf", "telefone com ddd"
+    ]):
+        return "coletando_dados_pessoais"
+    
+    elif any(p in resposta_lower for p in [
+        "vamos precisar do seu endereço", "endereço completo", "cep", "número", "bairro", "complemento (opcional)"
+    ]):
+        return "coletando_endereco"
+    
+    elif any(p in resposta_lower for p in [
+        "prefere pix", "cartão em até 12x", "forma de pagamento", "como prefere pagar"
+    ]):
+        return "metodo_pagamento"
+    
+    elif any(p in resposta_lower for p in [
+        "vou te passar a chave pix", "chave pix (cnpj)", "abaixo segue a chave", "para garantir seu pedido via pix"
+    ]):
+        return "aguardando_pagamento"
+    
+    elif any(p in resposta_lower for p in [
+        "me envia o comprovante", "confirmar rapidinho no sistema", "envia aqui o pagamento", "assim consigo confirmar"
+    ]):
+        return "pagamento_confirmado"
+    
+    return None
 
 @app.route("/", methods=["GET"])
 def home():
@@ -584,7 +624,8 @@ def processar_mensagem(telefone):
 
     print(f"🧩 Mensagem completa da fila: {mensagem_completa}")
     
-    etapa = "inicio"
+    doc = firestore_client.collection("conversas").document(telefone).get()
+    etapa = doc.to_dict().get("etapa", "inicio") if doc.exists else "inicio"
 
     prompt = [{"role": "system", "content": BASE_PROMPT}]
     contexto, emojis_ja_usados = obter_contexto(telefone)
@@ -725,6 +766,12 @@ Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergun
     print(f"🤖 GPT: {resposta}")
     resposta, novos_emojis = remover_emojis_repetidos(resposta, emojis_ja_usados)
 
+    resposta_lower = resposta.lower()
+    nova_etapa = identificar_proxima_etapa(resposta_lower)
+    if nova_etapa and nova_etapa != etapa:
+        print(f"🔁 Etapa atualizada automaticamente: {etapa} → {nova_etapa}")
+        etapa = nova_etapa
+
     def contem_frase_proibida(texto):
         frases_proibidas = [
             "se tiver dúvidas, estou à disposição",
@@ -779,55 +826,14 @@ Mantenha os blocos curtos com até 350 caracteres e separados por **duas quebras
     if tempos:
         tempos[0] = delay_inicial
 
-if etapa == "inicio":
-    resposta_lower = resposta.lower()
-
-    if any(p in resposta_lower for p in [
-        "imagino o quanto", "isso impacta", "entendo demais", "pesado conviver",
-        "vamos juntas encontrar", "diz muito sobre você", "abrir mão disso", "deve ser difícil conviver"
-    ]):
-        etapa = "momento_conexao"
-
-    elif any(p in resposta_lower for p in [
-        "com base no que você compartilhou", "posso te mostrar os kits",
-        "vou te apresentar as opções", "valores são", "kit mais vendido", "custam", "valor", "preço", "quanto custa", "tem desconto"
-    ]):
-        etapa = "apresentando_preço"
-
-    elif any(p in resposta_lower for p in [
-        "vou precisar dos seus dados", "preciso de algumas informações suas",
-        "pra garantir seu pedido", "vamos garantir seu pedido", "dados pessoais", "nome completo", "cpf", "telefone com ddd"
-    ]):
-        etapa = "coletando_dados_pessoais"
-
-    elif any(p in resposta_lower for p in [
-        "vamos precisar do seu endereço", "endereço completo", "cep", "número", "bairro", "complemento (opcional)"
-    ]):
-        etapa = "coletando_endereco"
-
-    elif any(p in resposta_lower for p in [
-        "prefere pix", "cartão em até 12x", "forma de pagamento", "como prefere pagar"
-    ]):
-        etapa = "metodo_pagamento"
-
-    elif any(p in resposta_lower for p in [
-        "vou te passar a chave pix", "chave pix (cnpj)", "abaixo segue a chave", "para garantir seu pedido via pix"
-    ]):
-        etapa = "aguardando_pagamento"
-
-    elif any(p in resposta_lower for p in [
-        "me envia o comprovante", "confirmar rapidinho no sistema", "envia aqui o pagamento", "assim consigo confirmar"
-    ]):
-        etapa = "pagamento_confirmado"
-
-
-    doc_ref = firestore_client.collection("conversas").document(telefone)
-    doc = doc_ref.get()
-    if doc.exists and doc.to_dict().get("last_msg_id") == msg_id:
-        print("⚠️ Mensagem já foi processada. Pulando salvar_no_firestore.")
-    else:
-        if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
-            return  # ✅ AGORA ESTÁ DENTRO DA FUNÇÃO E COM A INDENTAÇÃO CORRETA
+    if etapa == "inicio":
+        doc_ref = firestore_client.collection("conversas").document(telefone)
+        doc = doc_ref.get()
+        if doc.exists and doc.to_dict().get("last_msg_id") == msg_id:
+            print("⚠️ Mensagem já foi processada. Pulando salvar_no_firestore.")
+        else:
+            if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
+                return
 
     whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
     headers = {
