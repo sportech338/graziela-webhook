@@ -630,6 +630,50 @@ def processar_mensagem(telefone):
     else:
         emojis_ja_usados = []
 
+if etapa in ["momento_conexao"]:
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+Responda como se estivesse conversando no WhatsApp. Use \\n\\n para separar ideias quando sentir que uma pausa deixaria a conversa mais leve e fluida.
+Se a resposta for mais curta ou direta, use apenas um bloco. Se estiver orientando, acolhendo ou conduzindo, quebre em dois ou mais blocos, sempre com naturalidade — como você falaria com alguém em atendimento humano e empático."""})
+
+    if etapa == "apresentando_preço":
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+Responda como se estivesse conversando no WhatsApp. Use \\n\\n para separar ideias quando sentir que uma pausa deixaria a conversa mais leve e fluida.
+Se a resposta for mais curta ou direta, use apenas um bloco. Se estiver orientando, acolhendo ou conduzindo, quebre em dois ou mais blocos, sempre com naturalidade — como você falaria com alguém em atendimento humano e empático."""})
+
+    elif etapa == "coletando_dados_pessoais":
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+Responda como se estivesse conversando no WhatsApp. Use \\n\\n para separar ideias quando sentir que uma pausa deixaria a conversa mais leve e fluida.
+Se a resposta for mais curta ou direta, use apenas um bloco. Se estiver orientando, acolhendo ou conduzindo, quebre em dois ou mais blocos, sempre com naturalidade — como você falaria com alguém em atendimento humano e empático."""})
+
+    elif etapa == "coletando_endereco":
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+Responda como se estivesse conversando no WhatsApp. Use \\n\\n para separar ideias quando sentir que uma pausa deixaria a conversa mais leve e fluida.
+Se a resposta for mais curta ou direta, use apenas um bloco. Se estiver orientando, acolhendo ou conduzindo, quebre em dois ou mais blocos, sempre com naturalidade — como você falaria com alguém em atendimento humano e empático."""})
+
+    elif etapa == "metodo_pagamento":
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+Responda como se estivesse conversando no WhatsApp. Use \\n\\n para separar ideias quando sentir que uma pausa deixaria a conversa mais leve e fluida.
+Se a resposta for mais curta ou direta, use apenas um bloco. Se estiver orientando, acolhendo ou conduzindo, quebre em dois ou mais blocos, sempre com naturalidade — como você falaria com alguém em atendimento humano e empático.
+"""})
+
+    else:
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+Responda como se estivesse conversando no WhatsApp. Use \\n\\n para separar ideias quando sentir que uma pausa deixaria a conversa mais leve e fluida.
+Se a resposta for mais curta ou direta, use apenas um bloco. Se estiver orientando, acolhendo ou conduzindo, quebre em dois ou mais blocos, sempre com naturalidade — como você falaria com alguém em atendimento humano e empático.
+"""})
+
     completion = client.chat.completions.create(
         model="gpt-4o",
         messages=prompt,
