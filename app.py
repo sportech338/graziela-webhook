@@ -281,6 +281,7 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
 
         mensagens = data.get("mensagens", [])
         resumo = data.get("resumo", "")
+        tentativas = data.get("tentativas", 0) + 1
         agora = datetime.now()
 
         mensagens.append({"quem": "cliente", "texto": mensagem, "timestamp": agora.isoformat()})
@@ -293,6 +294,10 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
             mensagens = mensagens[-6:]
             print("📉 Mensagens antigas resumidas.")
 
+        # Análise comportamental
+        followup_em_aberto = etapa in ["aguardando_pagamento", "agendado", "pergunta_forma_pagamento"]
+        estado = analisar_estado_comportamental(mensagem, tentativas, followup_em_aberto)
+
         doc_ref.set({
             "telefone": telefone,
             "etapa": etapa,
@@ -300,9 +305,13 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
             "mensagens": mensagens,
             "resumo": resumo,
             "ultimo_resumo_em": agora.isoformat(),
-            "last_msg_id": msg_id
+            "last_msg_id": msg_id,
+            "tentativas": tentativas,
+            "nivel_consciencia": estado["consciencia"],
+            "objecao_atual": estado["objeção"],
+            "etiqueta": estado["etiqueta"]
         })
-        print("📦 Mensagens salvas e histórico controlado no Firestore.")
+        print("📦 Mensagens + status salvos no Firestore com sucesso.")
         return True
 
     except Exception as e:
@@ -603,13 +612,8 @@ def processar_mensagem(telefone):
     tentativas = doc.to_dict().get("tentativas", 0) if doc.exists else 0
     followup_em_aberto = etapa in ["aguardando_pagamento", "agendado", "pergunta_forma_pagamento"]
 
-    estado = analisar_estado_comportamental(mensagem_completa, tentativas, followup_em_aberto)
-
-    firestore_client.collection("conversas").document(telefone).update({
-        "nivel_consciencia": estado["consciencia"],
-        "objecao_atual": estado["objeção"],
-        "etiqueta": estado["etiqueta"]
-    })
+    else:
+        print("⚠️ Documento não existe ainda. A marcação será feita após o salvar_no_firestore.")
 
     prompt = [{"role": "system", "content": BASE_PROMPT}]
     contexto, emojis_ja_usados = obter_contexto(telefone)
