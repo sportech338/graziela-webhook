@@ -271,6 +271,20 @@ def registrar_no_sheets(telefone, mensagem, resposta):
 def analisar_estado_comportamental(mensagem, tentativas=1, followup_em_aberto=False):
     mensagem = mensagem.lower()
 
+    # 🏷️ Etiqueta (Status Comercial)
+    if tentativas >= 18 or any(frase in mensagem for frase in ["não quero mais", "cancela", "desiste", "quero cancelar"]):
+        etiqueta = "Venda perdida"
+    elif any(p in mensagem for p in ["comprovante", "paguei", "tá pago", "já fiz o pix", "enviei o pagamento"]):
+        etiqueta = "Venda feita"
+    elif any(p in mensagem for p in ["me chama", "às", "as ", "dia", "horário", "horas", "às ", "as ", "amanhã", "depois das", "semana que vem"]):
+        etiqueta = "Agendado"
+    elif "valor" in mensagem or "preço" in mensagem or "quanto custa" in mensagem:
+        etiqueta = "Em negociação"
+    elif any(p in mensagem for p in ["como funciona", "é eficaz", "tem efeito", "funciona mesmo", "qual a diferença", "ajuda com dor", "qual o benefício", "é bom"]):
+        etiqueta = "Interessado"
+    else:
+        etiqueta = "em atendimento"
+
     # 🔍 Nível de Consciência
     if any(p in mensagem for p in ["o que é isso", "pra que serve", "me explica melhor", "nunca ouvi falar", "minha mãe que mandou", "só vi o anúncio", "tava só olhando", "não sei do que se trata"]):
         consciencia = "Inconsciente"
@@ -296,20 +310,6 @@ def analisar_estado_comportamental(mensagem, tentativas=1, followup_em_aberto=Fa
         objecao = "Necessidade"
     else:
         objecao = "Nenhuma aparente"
-
-    # 🏷️ Etiqueta (Status Comercial)
-    if tentativas >= 18 or any(frase in mensagem for frase in ["não quero mais", "cancela", "desiste", "quero cancelar"]):
-        etiqueta = "Venda perdida"
-    elif any(p in mensagem for p in ["comprovante", "paguei", "tá pago", "já fiz o pix", "enviei o pagamento"]):
-        etiqueta = "Venda feita"
-    elif any(p in mensagem for p in ["me chama", "às", "as ", "dia", "horário", "horas", "às ", "as ", "amanhã", "depois das", "semana que vem"]):
-        etiqueta = "Agendado"
-    elif "valor" in mensagem or "preço" in mensagem or "quanto custa" in mensagem:
-        etiqueta = "Em negociação"
-    elif any(p in mensagem for p in ["como funciona", "é eficaz", "tem efeito", "funciona mesmo", "qual a diferença", "ajuda com dor", "qual o benefício", "é bom"]):
-        etiqueta = "Interessado"
-    else:
-        etiqueta = "em atendimento"
 
     return {
         "consciencia": consciencia,
@@ -586,14 +586,17 @@ def processar_mensagem(telefone):
     
     etapa = "inicio"
     mensagem_lower = mensagem_completa.lower()   
-   
-    if any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "tem desconto"]):
+    if any(p in mensagem_lower for p in ["me conta", "frustrante", "difícil", "tô cansado", "não aguento mais", "complicado", "sofrido", "me atrapalha", "angustiante", "desesperador"]):
+        etapa = "momento_conexao"
+    elif any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "tem desconto"]):
         etapa = "apresentando_valor"
     elif all(p in mensagem_lower for p in ["nome", "cpf", "telefone"]) and any(p in mensagem_lower for p in ["email", "e-mail"]):
         etapa = "coletando_dados_pessoais"
     elif all(p in mensagem_lower for p in ["cep", "endereço", "número", "bairro", "cidade"]):
         etapa = "coletando_endereco"
-    elif any(p in mensagem_lower for p in ["pix", "transferência", "como pagar", "chave"]):
+    elif any(p in mensagem_lower for p in ["pix", "transferência", "como pagar", "cartao"]):
+        etapa = "metodo_pagamento"
+    elif any(p in mensagem_lower for p in ["vou pagar", "qual a chave"]):
         etapa = "aguardando_pagamento"
     elif any(p in mensagem_lower for p in ["paguei", "tá pago", "comprovante", "enviei", "já fiz o pagamento"]):
         etapa = "pagamento_confirmado"
@@ -605,7 +608,29 @@ def processar_mensagem(telefone):
     else:
         emojis_ja_usados = []
 
-    if etapa == "solicitou_valor":
+    if etapa in ["momento_conexao"]:
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+IMPORTANTE:
+Comece acolhendo com força emocional e conexão genuína. Demonstre escuta ativa e gere segurança com empatia.  
+**Não apresente preços diretamente ainda.**  
+Primeiro, crie valor e reforce como o Flexlive pode aliviar essa dor de forma leve e segura.
+
+Conduza com frases como:
+- "Nossa, entendo demais. Imagino o quanto deve estar pesado conviver com isso há tanto tempo."
+- "Se for pra investir em algo, que seja no que pode devolver sua qualidade de vida, né?"
+- "A gente só valoriza quando volta a andar sem dor."
+
+Apenas **ao final**, conduza de forma sutil para apresentar os kits (em até 3 frases curtas por bloco, separadas por duas quebras de linha \\n\\n), com foco em solução leve e consciente.
+
+⚠️ NUNCA use frases passivas como:
+- "Se tiver dúvidas, estou à disposição."
+- "Me chama se quiser."
+- "Qualquer coisa, estou por aqui."
+Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa."""})
+
+    if etapa == "apresentando_valor":
         prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
 {mensagem_completa}
 
@@ -683,29 +708,7 @@ Bloco 2:
 - "Qualquer coisa, estou por aqui."
 Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa."""})
 
-    elif etapa in ["resistencia_financeira", "dor_cronica"]:
-        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
-{mensagem_completa}
-
-IMPORTANTE:
-Comece acolhendo com força emocional e conexão genuína. Demonstre escuta ativa e gere segurança com empatia.  
-**Não apresente preços diretamente ainda.**  
-Primeiro, crie valor e reforce como o Flexlive pode aliviar essa dor de forma leve e segura.
-
-Conduza com frases como:
-- "Nossa, entendo demais. Imagino o quanto deve estar pesado conviver com isso há tanto tempo."
-- "Se for pra investir em algo, que seja no que pode devolver sua qualidade de vida, né?"
-- "A gente só valoriza quando volta a andar sem dor."
-
-Apenas **ao final**, conduza de forma sutil para apresentar os kits (em até 3 frases curtas por bloco, separadas por duas quebras de linha \\n\\n), com foco em solução leve e consciente.
-
-⚠️ NUNCA use frases passivas como:
-- "Se tiver dúvidas, estou à disposição."
-- "Me chama se quiser."
-- "Qualquer coisa, estou por aqui."
-Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa."""})
-
-    elif etapa == "pergunta_forma_pagamento":
+    elif etapa == "metodo_pagamento":
         prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
 {mensagem_completa}
 
