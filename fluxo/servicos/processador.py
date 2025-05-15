@@ -69,7 +69,6 @@ def processar_mensagem_da_fila(telefone):
         print("❌ Erro ao gerar resposta. Abortando.")
         return
 
-    # Separa a resposta para cliente do bloco de dados
     partes = resposta.strip().rsplit("---", maxsplit=1)
     mensagem_cliente_final = partes[0].strip()
     bloco_dados = partes[1].strip() if len(partes) > 1 else ""
