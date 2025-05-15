@@ -488,7 +488,7 @@ def remover_emojis_repetidos(texto, emojis_ja_usados):
 
 def identificar_proxima_etapa(resposta_lower):
     if any(p in resposta_lower for p in [
-        "imagino o quanto", "isso impacta", "entendo demais", "pesado conviver",
+        "imagino o quanto", "isso impacta", "entendo demais", "pesado conviver", "Vamos juntas"
         "vamos juntas encontrar", "diz muito sobre você", "abrir mão disso", "deve ser difícil conviver"
     ]):
         return "momento_conexao"
