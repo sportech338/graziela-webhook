@@ -505,10 +505,8 @@ def webhook():
                 temp_ref.set({"pendentes": pendentes})
                 print("⏳ Mensagem adicionada à fila temporária.")
 
-                status_doc = firestore_client.collection("status_threads").document(telefone)
-                if not status_doc.get().exists:
-                    status_doc.set({"em_execucao": True})
-                    threading.Thread(target=processar_mensagem, args=(telefone,)).start()
+                threading.Thread(target=processar_mensagem, args=(telefone,)).start()
+                status_doc.set({"em_execucao": True})
 
             except Exception as e:
                 print(f"❌ Erro ao adicionar à fila temporária: {e}")
