@@ -284,18 +284,16 @@ def analisar_estado_comportamental(mensagem, tentativas=1, followup_em_aberto=Fa
         etiqueta = "Interessado"
 
     # 🔍 Nível de Consciência
-    if any(p in mensagem for p in ["o que é isso", "pra que serve", "me explica melhor", "nunca ouvi falar", "minha mãe que mandou", "só vi o anúncio", "tava só olhando", "não sei do que se trata"]):
-        consciencia = "Inconsciente"
     if any(p in mensagem for p in ["dói muito", "dor no", "minha dor", "tá doendo", "não consigo andar", "não consigo dormir",  "tô cansado dessa dor", "essa dor me atrapalha", "uso remédio todo dia", "já tentei várias coisas"]):
-        consciencia = "Consciente da dor"
+        consciencia = "Sabe da dor"
     elif any(p in mensagem for p in ["já tentei de tudo", "nada funciona", "nada resolve", "já usei isso", "já comprei", "não resolveu"]):
-        consciencia = "Consciente da solução"
+        consciencia = "Sabe da solução"
     elif any(p in mensagem for p in ["Tenho interesse", "quero o flexlive", "quero o de 30", "qual o melhor kit", "me manda o link", "prefiro pix", "qual a diferença dos kits", "tem o de 60 peças"]):
-        consciencia = "Consciente do produto"
+        consciencia = "Sabe do produto"
     elif any(p in mensagem for p in ["já fiz o pix", "pode fechar", "quero fechar hoje", "meu cpf é", "vou querer o de 120",  "pode mandar", "quero garantir o meu", "vou comprar agora"]):
-        consciencia = "Pronto para compra"
+        consciencia = "Já quer comprar"
     else:
-        consciencia = "Neutro"
+        consciencia = "Pouco consciente"
 
     # 🙅 Objeções
     if any(p in mensagem for p in ["caro", "muito caro", "tá caro", "sem dinheiro", "não posso pagar", "desconto", "tem mais barato", "valor alto", "muito alto", "difícil pra mim agora"]):
@@ -307,7 +305,7 @@ def analisar_estado_comportamental(mensagem, tentativas=1, followup_em_aberto=Fa
     elif any(p in mensagem for p in ["não posso", "não quero", "não me interessa", "não serve pra mim", "não preciso",  "não ajuda", "já estou tratando", "não tenho dor", "já uso outro", "não vejo necessidade",  "já resolvi meu problema", "não uso essas coisas"]):
         objecao = "Necessidade"
     else:
-        objecao = "Nenhuma aparente"
+        objecao = "Nenhuma"
 
     return {
         "consciencia": consciencia,
