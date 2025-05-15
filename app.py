@@ -612,9 +612,6 @@ def processar_mensagem(telefone):
     tentativas = doc.to_dict().get("tentativas", 0) if doc.exists else 0
     followup_em_aberto = etapa in ["aguardando_pagamento", "agendado", "pergunta_forma_pagamento"]
 
-    else:
-        print("⚠️ Documento não existe ainda. A marcação será feita após o salvar_no_firestore.")
-
     prompt = [{"role": "system", "content": BASE_PROMPT}]
     contexto, emojis_ja_usados = obter_contexto(telefone)
     if contexto:
