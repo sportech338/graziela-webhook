@@ -639,7 +639,7 @@ def processar_mensagem(telefone):
 {mensagem_completa}
 
 IMPORTANTE:
-Comece acolhendo com força emocional e conexão genuína. Demonstre escuta ativa e gere segurança com empatia.  
+Não faça duas perguntas numa mesma resposta! Comece acolhendo com força emocional e conexão genuína. Demonstre escuta ativa e gere segurança com empatia.  
 **Não apresente preços diretamente ainda.**  
 Primeiro, crie valor e reforce como o Flexlive pode aliviar essa dor de forma leve e segura.
 
