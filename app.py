@@ -281,6 +281,7 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
 
         mensagens = data.get("mensagens", [])
         resumo = data.get("resumo", "")
+        tentativas = data.get("tentativas", 0) + 1
         agora = datetime.now()
 
         mensagens.append({"quem": "cliente", "texto": mensagem, "timestamp": agora.isoformat()})
@@ -293,6 +294,9 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
             mensagens = mensagens[-6:]
             print("📉 Mensagens antigas resumidas.")
 
+        followup_em_aberto = etapa in ["aguardando_pagamento", "agendado", "pergunta_forma_pagamento"]
+        estado = analisar_estado_comportamental(mensagem, tentativas, followup_em_aberto)
+ 
         doc_ref.set({
             "telefone": telefone,
             "etapa": etapa,
@@ -300,7 +304,11 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
             "mensagens": mensagens,
             "resumo": resumo,
             "ultimo_resumo_em": agora.isoformat(),
-            "last_msg_id": msg_id
+            "last_msg_id": msg_id,
+            "tentativas": tentativas,
+            "nivel_consciencia": estado["consciencia"],
+            "objecao_atual": estado["objeção"],
+            "etiqueta": estado["etiqueta"]
         })
         print("📦 Mensagens salvas e histórico controlado no Firestore.")
         return True
