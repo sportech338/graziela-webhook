@@ -589,7 +589,7 @@ def processar_mensagem(telefone):
     if any(p in mensagem_lower for p in ["me conta", "frustrante", "difícil", "tô cansado", "não aguento mais", "complicado", "sofrido", "me atrapalha", "angustiante", "desesperador"]):
         etapa = "momento_conexao"
     elif any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "tem desconto"]):
-        etapa = "apresentando_valor"
+        etapa = "apresentando_preço"
     elif all(p in mensagem_lower for p in ["nome", "cpf", "telefone"]) and any(p in mensagem_lower for p in ["email", "e-mail"]):
         etapa = "coletando_dados_pessoais"
     elif all(p in mensagem_lower for p in ["cep", "endereço", "número", "bairro", "cidade"]):
@@ -630,11 +630,11 @@ Apenas **ao final**, conduza de forma sutil para apresentar os kits (em até 3 f
 - "Qualquer coisa, estou por aqui."
 Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa."""})
 
-    if etapa == "apresentando_valor":
+    if etapa == "apresentando_preço":
         prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
 {mensagem_completa}
 
-IMPORTANTE: Antes de apresentar os valores, acolha o cliente com empatia e segurança emocional.  
+IMPORTANTE: Não apresentar preço se ainda não tiver gerado valor! Acolha o cliente com empatia e segurança emocional.  
 Mostre que você entendeu o que ele sente e que o foco é aliviar essa dor com responsabilidade.
 
 ⚠️ Use no máximo 3 frases curtas por bloco, com até 350 caracteres cada.  
