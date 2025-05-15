@@ -660,8 +660,20 @@ Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergun
         prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
 {mensagem_completa}
 
-IMPORTANTE: Não apresentar preço se ainda não tiver gerado valor! Concorde com o cliente, acolha com empatia e segurança emocional.  
-Mostre que você entendeu o que ele sente e que o foco é aliviar essa dor com responsabilidade.
+IMPORTANTE: Antes de apresentar os valores, acolha o cliente com empatia e segurança emocional.  
+Mostre que você entendeu o que ele sente e que o foco é aliviar essa dor com responsabilidade.  
+Exemplos:
+- "Entendo... conviver com isso deve ser bem desgastante mesmo."
+- "A gente só valoriza quando volta a andar sem dor, né?"
+
+Só depois conduza a apresentação dos kits — de forma leve, segura e consultiva.
+
+Apresente todos os kits nesta ordem: 120 → 60 → 30 → 20. 
+Destaque que o de 30 peças é o mais escolhido por render certinho pra 1 mês.  
+Compare brevemente os benefícios de cada um, reforçando que os maiores maiores compensam valor por unidade e garantem uma sequência de uso mais contínua — o que costuma acelerar os resultados.
+
+Finalize com uma pergunta consultiva como:
+"Quer que eu te ajude a comparar os kits pra vermos o melhor pra agora?"
 
 ⚠️ Use no máximo 3 frases curtas por bloco, com até 350 caracteres cada.  
 Separe os blocos com **duas quebras de linha (`\\n\\n`)** para simular uma conversa natural no WhatsApp.  
