@@ -627,6 +627,11 @@ def processar_mensagem(telefone):
         prompt.append({"role": "user", "content": f"Histórico da conversa:\n{contexto}"})
     else:
         emojis_ja_usados = []
+ 
+    prompt.append({
+        "role": "user",
+        "content": f"O cliente disse: \"{mensagem_completa}\"\n\nResponda como Graziela, seguindo o estilo e as regras do prompt."
+    })
 
     completion = client.chat.completions.create(
         model="gpt-4o",
