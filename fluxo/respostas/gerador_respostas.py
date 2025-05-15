@@ -183,7 +183,10 @@ Se a resposta for longa, divida em blocos curtos de até 350 caracteres cada, se
 
 Evite blocos desnecessários em respostas curtas. Só use quebras quando ajudar na clareza e no ritmo da conversa.
 
-Finalize com uma pergunta consultiva que incentive a continuidade da interação."""
+Finalize com uma pergunta consultiva que incentive a continuidade da interação.
+
+Ao final da resposta, adicione um bloco com os dados da jornada nos seguintes campos obrigatórios:
+etapa, consciência, temperatura, objeção, ambiguidade."""
     })
 
     return prompt
