@@ -281,7 +281,6 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
 
         mensagens = data.get("mensagens", [])
         resumo = data.get("resumo", "")
-        tentativas = data.get("tentativas", 0) + 1
         agora = datetime.now()
 
         mensagens.append({"quem": "cliente", "texto": mensagem, "timestamp": agora.isoformat()})
@@ -294,10 +293,6 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
             mensagens = mensagens[-6:]
             print("📉 Mensagens antigas resumidas.")
 
-        # Análise comportamental
-        followup_em_aberto = etapa in ["aguardando_pagamento", "agendado", "pergunta_forma_pagamento"]
-        estado = analisar_estado_comportamental(mensagem, tentativas, followup_em_aberto)
-
         doc_ref.set({
             "telefone": telefone,
             "etapa": etapa,
@@ -305,13 +300,9 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
             "mensagens": mensagens,
             "resumo": resumo,
             "ultimo_resumo_em": agora.isoformat(),
-            "last_msg_id": msg_id,
-            "tentativas": tentativas,
-            "nivel_consciencia": estado["consciencia"],
-            "objecao_atual": estado["objeção"],
-            "etiqueta": estado["etiqueta"]
+            "last_msg_id": msg_id
         })
-        print("📦 Mensagens + status salvos no Firestore com sucesso.")
+        print("📦 Mensagens salvas e histórico controlado no Firestore.")
         return True
 
     except Exception as e:
@@ -496,11 +487,6 @@ def webhook():
                 temp_doc = temp_ref.get()
                 pendentes = temp_doc.to_dict().get("pendentes", []) if temp_doc.exists else []
 
-
-                if any(p["msg_id"] == msg_id for p in pendentes):
-                    print("⚠️ Mensagem já estava na fila temporária. Ignorando duplicata.")
-                    return "ok", 200
-
                 pendentes.append({
                     "texto": nova_mensagem,
                     "timestamp": datetime.utcnow().isoformat(),
@@ -514,8 +500,7 @@ def webhook():
                 if not status_doc.get().exists:
                     status_doc.set({"em_execucao": True})
                     threading.Thread(target=processar_mensagem, args=(telefone,)).start()
-                else:
-                    print("⚠️ Thread já em execução para esse telefone. Ignorando novo processamento.")
+
             except Exception as e:
                 print(f"❌ Erro ao adicionar à fila temporária: {e}")
 
@@ -524,50 +509,6 @@ def webhook():
     except Exception as e:
         print(f"❌ Erro geral no webhook: {e}")
         return make_response("Erro interno", 500)
-
-def analisar_estado_comportamental(mensagem: str, tentativas: int, followup_em_aberto: bool) -> dict:
-    texto = mensagem.lower()
-
-    if any(p in texto for p in ["me explica", "o que é isso", "pra que serve", "nunca ouvi"]):
-        consciencia = "Inconsciente"
-    elif any(p in texto for p in ["dor", "dói", "não aguento", "me atrapalha", "não consigo"]):
-        consciencia = "Consciente da dor"
-    elif any(p in texto for p in ["funciona", "alivia", "quanto tempo", "natural", "é seguro"]):
-        consciencia = "Consciente da solução"
-    elif any(p in texto for p in ["flexlive", "quero o de", "me manda o link", "qual o melhor kit"]):
-        consciencia = "Consciente do produto"
-    elif any(p in texto for p in ["já fiz o pix", "pode fechar", "meus dados são", "fechado"]):
-        consciencia = "Pronto para comprar"
-    else:
-        consciencia = "Inconsciente"
-
-    if any(p in texto for p in ["caro", "muito caro", "sem grana", "não tenho dinheiro", "tá difícil"]):
-        objecao = "Preço"
-    elif any(p in texto for p in ["vou pensar", "depois eu vejo", "talvez mês que vem", "não sei ainda"]):
-        objecao = "Tempo / indecisão"
-    elif any(p in texto for p in ["não confio", "parece golpe", "é seguro?"]):
-        objecao = "Confiança"
-    else:
-        objecao = None
-
-    if any(p in texto for p in ["não quero mais", "já resolvi", "cancela", "não confio"]):
-        etiqueta = "Venda perdida"
-    elif any(p in texto for p in ["já fiz o pix", "comprovante", "paguei", "enviei os dados"]):
-        etiqueta = "Venda feita"
-    elif consciencia == "Consciente do produto" and followup_em_aberto:
-        etiqueta = "Agendado"
-    elif consciencia == "Pronto para comprar" and followup_em_aberto:
-        etiqueta = "Agendado"
-    elif consciencia in ["Consciente da solução", "Consciente do produto", "Pronto para comprar"]:
-        etiqueta = "Em negociação"
-    else:
-        etiqueta = "Interessado"
-
-    return {
-        "consciencia": consciencia,
-        "objeção": objecao,
-        "etiqueta": etiqueta
-    }
 
 def processar_mensagem(telefone):
     time.sleep(15)
@@ -584,34 +525,22 @@ def processar_mensagem(telefone):
     mensagens_ordenadas = sorted(mensagens, key=lambda m: m["timestamp"])
     mensagem_completa = " ".join([m["texto"] for m in mensagens_ordenadas]).strip()
     msg_id = mensagens_ordenadas[-1]["msg_id"]
-    mensagens_restantes = [m for m in mensagens if m["msg_id"] != msg_id]
-    temp_ref.set({"pendentes": mensagens_restantes})
 
     print(f"🧩 Mensagem completa da fila: {mensagem_completa}")
     
     etapa = "inicio"
-    mensagem_lower = mensagem_completa.lower()
-
-    if all(p in mensagem_lower for p in ["nome", "cpf", "telefone"]) and any(p in mensagem_lower for p in ["email", "e-mail"]):
-        etapa = "coletando_dados_pessoais"
-    elif all(p in mensagem_lower for p in ["cep", "endereço", "número", "bairro", "cidade"]):
-        etapa = "coletando_endereco"
-    elif any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "tem desconto"]):
+    mensagem_lower = mensagem_completa.lower()   
+   
+   if any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "tem desconto"]):
         etapa = "apresentando_valor"
-    elif any(p in mensagem_lower for p in [
-        "quero comprar", "vou querer", "quero esse", "quero sim", "sim quero", 
-        "sim por favor", "quero o de", "pode ser esse", "pode ser o de", "vou ficar com"
-    ]) and all(x in mensagem_lower for x in ["cep", "rua", "bairro", "cidade", "estado"]):
-        etapa = "pergunta_forma_pagamento"
+   elif all(p in mensagem_lower for p in ["nome", "cpf", "telefone"]) and any(p in mensagem_lower for p in ["email", "e-mail"]):
+        etapa = "coletando_dados_pessoais"
+   elif all(p in mensagem_lower for p in ["cep", "endereço", "número", "bairro", "cidade"]):
+        etapa = "coletando_endereco"
     elif any(p in mensagem_lower for p in ["pix", "transferência", "como pagar", "chave"]):
         etapa = "aguardando_pagamento"
     elif any(p in mensagem_lower for p in ["paguei", "tá pago", "comprovante", "enviei", "já fiz o pagamento"]):
-        etapa = "pagamento_realizado"
-    
-    doc_ref = firestore_client.collection("conversas").document(telefone)
-    doc = doc_ref.get()
-    tentativas = doc.to_dict().get("tentativas", 0) if doc.exists else 0
-    followup_em_aberto = etapa in ["aguardando_pagamento", "agendado", "pergunta_forma_pagamento"]
+        etapa = "pagamento_confirmado"
 
     prompt = [{"role": "system", "content": BASE_PROMPT}]
     contexto, emojis_ja_usados = obter_contexto(telefone)
@@ -619,6 +548,140 @@ def processar_mensagem(telefone):
         prompt.append({"role": "user", "content": f"Histórico da conversa:\n{contexto}"})
     else:
         emojis_ja_usados = []
+
+    if etapa == "solicitou_valor":
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+IMPORTANTE: Antes de apresentar os valores, acolha o cliente com empatia e segurança emocional.  
+Mostre que você entendeu o que ele sente e que o foco é aliviar essa dor com responsabilidade.  
+Exemplos:
+- "Entendo... conviver com isso deve ser bem desgastante mesmo."
+- "A gente só valoriza quando volta a andar sem dor, né?"
+
+Só depois conduza a apresentação dos kits — de forma leve, segura e consultiva.
+
+Apresente todos os kits nesta ordem: 120 → 60 → 30 → 20.  
+Inclua os preços reais.  
+Destaque que o de 30 peças é o mais escolhido por render certinho pra 1 mês.  
+Compare brevemente os benefícios de cada um, reforçando que os maiores aliviam mais rápido e compensam no valor por unidade.
+
+Finalize com uma pergunta consultiva como:
+"Quer que eu te ajude a comparar os kits pra vermos o melhor pra agora?"
+
+⚠️ Use no máximo 3 frases curtas por bloco, com até 350 caracteres cada.  
+Separe os blocos com **duas quebras de linha (`\\n\\n`)** para simular uma conversa natural no WhatsApp.  
+**Sempre inclua o kit de 120 peças.**
+
+⚠️ NUNCA use frases passivas como:
+- "Se tiver dúvidas, estou à disposição."
+- "Me chama se quiser."
+- "Qualquer coisa, estou por aqui."
+Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa."""})
+
+    elif etapa == "coletando_dados_pessoais":
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+IMPORTANTE: O cliente demonstrou que quer fechar o pedido. Agora, conduza com leveza a coleta dos dados pessoais em blocos curtos e claros:
+
+Bloco 1:
+"Perfeito! Vamos garantir seu pedido com segurança."
+
+Bloco 2:
+"Para começar, vou precisar de alguns dados seus:
+
+- Nome completo:
+- CPF:
+- Telefone com DDD:"
+
+Bloco 3:
+"Apresenta algum e-mail para envio do código de rastreio?"
+
+⚠️ NUNCA use frases passivas como:
+- "Se tiver dúvidas, estou à disposição."
+- "Me chama se quiser."
+- "Qualquer coisa, estou por aqui."
+Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa."""})
+
+    elif etapa == "coletando_endereco":
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+IMPORTANTE: O cliente já passou os dados pessoais. Agora peça com gentileza os dados de endereço.
+
+Bloco 1:
+"Agora, vamos precisar do seu endereço completo:
+
+- CEP:
+- Endereço completo:
+- Número:
+- Complemento (opcional):"
+
+Bloco 2:
+"Assim que tiver tudo certinho, seguimos com a finalização do pedido."
+
+⚠️ NUNCA use frases passivas como:
+- "Se tiver dúvidas, estou à disposição."
+- "Me chama se quiser."
+- "Qualquer coisa, estou por aqui."
+Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa."""})
+
+    elif etapa in ["resistencia_financeira", "dor_cronica"]:
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+IMPORTANTE:
+Comece acolhendo com força emocional e conexão genuína. Demonstre escuta ativa e gere segurança com empatia.  
+**Não apresente preços diretamente ainda.**  
+Primeiro, crie valor e reforce como o Flexlive pode aliviar essa dor de forma leve e segura.
+
+Conduza com frases como:
+- "Nossa, entendo demais. Imagino o quanto deve estar pesado conviver com isso há tanto tempo."
+- "Se for pra investir em algo, que seja no que pode devolver sua qualidade de vida, né?"
+- "A gente só valoriza quando volta a andar sem dor."
+
+Apenas **ao final**, conduza de forma sutil para apresentar os kits (em até 3 frases curtas por bloco, separadas por duas quebras de linha \\n\\n), com foco em solução leve e consciente.
+
+⚠️ NUNCA use frases passivas como:
+- "Se tiver dúvidas, estou à disposição."
+- "Me chama se quiser."
+- "Qualquer coisa, estou por aqui."
+Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa."""})
+
+    elif etapa == "pergunta_forma_pagamento":
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+IMPORTANTE: O cliente já passou os dados e demonstrou que quer finalizar a compra.
+
+Agora, conduza com leveza e segurança:
+
+**\"Prefere Pix à vista com desconto ou cartão em até 12x?\"**
+
+Aguarde a resposta antes de enviar links ou instruções de pagamento.
+
+⚠️ NUNCA use frases passivas como:
+- "Se tiver dúvidas, estou à disposição."
+- "Me chama se quiser."
+- "Qualquer coisa, estou por aqui."
+Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa.
+"""})
+
+    else:
+        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
+{mensagem_completa}
+
+IMPORTANTE: Estruture sua resposta em **blocos de até 3 frases curtas**, com no máximo 350 caracteres por bloco. Separe os blocos com **duas quebras de linha (`\\n\\n`)**.
+
+Assim consigo entregar sua resposta no WhatsApp de forma mais natural, simulando uma conversa real.
+
+⚠️ NUNCA use frases passivas como:
+- "Se tiver dúvidas, estou à disposição."
+- "Me chama se quiser."
+- "Qualquer coisa, estou por aqui."
+Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa.
+"""})
 
     completion = client.chat.completions.create(
         model="gpt-4o",
