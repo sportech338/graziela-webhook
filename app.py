@@ -826,7 +826,6 @@ Mantenha os blocos curtos com até 350 caracteres e separados por **duas quebras
     if tempos:
         tempos[0] = delay_inicial
 
-    if etapa == "inicio":
         doc_ref = firestore_client.collection("conversas").document(telefone)
         doc = doc_ref.get()
         if doc.exists and doc.to_dict().get("last_msg_id") == msg_id:
