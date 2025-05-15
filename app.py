@@ -378,7 +378,7 @@ def obter_contexto(telefone):
 
             # Pega emojis já usados nas últimas mensagens da Graziela
             texto_respostas = " ".join([m["texto"] for m in mensagens if m["quem"] == "graziela"])
-            emojis_ja_usados = [e for e in ["😊", "💙"] if e in texto_respostas]
+            emojis_ja_usados = [e for e in ["😊", "💙", "😔"] if e in texto_respostas]
 
             return contexto, emojis_ja_usados
     except Exception as e:
