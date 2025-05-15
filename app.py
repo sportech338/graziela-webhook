@@ -268,6 +268,54 @@ def registrar_no_sheets(telefone, mensagem, resposta):
     except Exception as e:
         print(f"❌ Erro ao registrar no Google Sheets: {e}")
 
+def analisar_estado_comportamental(mensagem, tentativas=1, followup_em_aberto=False):
+    mensagem = mensagem.lower()
+
+    # 🔍 Nível de Consciência
+    if any(p in mensagem for p in ["dói", "dor", "não consigo", "sofro com", "me incomoda", "não aguento", "preciso de ajuda", "não consigo andar", "não consigo dormir"]):
+        consciencia = "consciente da dor"
+    elif any(p in mensagem for p in ["já tentei de tudo", "nada funciona", "nada resolve", "já usei isso", "já comprei", "não resolveu"]):
+        consciencia = "consciente da solução"
+    elif any(p in mensagem for p in ["vi o anúncio", "como funciona", "quero saber mais", "me interessei", "flexlive"]):
+        consciencia = "consciente do produto"
+    else:
+        consciencia = "pouco consciente"
+
+    # 🙅 Objeções
+    if any(p in mensagem for p in ["caro", "muito caro", "tá caro", "sem dinheiro", "não posso pagar", "desconto", "tem mais barato", "valor alto"]):
+        objecao = "preço"
+    elif any(p in mensagem for p in ["funciona mesmo", "não acredito", "parece golpe", "é seguro?", "tem garantia", "tem registro", "parece mentira"]):
+        objecao = "credibilidade"
+    elif any(p in mensagem for p in ["vou pensar", "depois eu vejo", "te chamo mais tarde", "vou falar com meu marido", "ainda não sei", "talvez", "estou indecisa"]):
+        objecao = "tempo ou prioridade"
+    elif any(p in mensagem for p in ["não posso", "não quero", "não me interessa", "não serve pra mim", "não preciso", "não ajuda", "já estou tratando"]):
+        objecao = "necessidade"
+    else:
+        objecao = "nenhuma aparente"
+
+    # 🏷️ Etiqueta (Status Comercial)
+    if "comprovante" in mensagem or "paguei" in mensagem or "tá pago" in mensagem:
+        etiqueta = "pagamento confirmado"
+    elif any(p in mensagem for p in ["pix", "boleto", "cartão", "como pagar", "me passa a chave", "forma de pagamento"]):
+        etiqueta = "aguardando pagamento"
+    elif any(p in mensagem for p in ["meu endereço é", "cep", "número", "bairro", "cidade"]) or "rua" in mensagem:
+        etiqueta = "coletando endereço"
+    elif any(p in mensagem for p in ["cpf", "nome", "telefone", "e-mail", "email"]):
+        etiqueta = "coletando dados pessoais"
+    elif "valor" in mensagem or "preço" in mensagem or "quanto custa" in mensagem:
+        etiqueta = "solicitou preço"
+    elif followup_em_aberto and tentativas >= 3:
+        etiqueta = "resgate necessário"
+    elif followup_em_aberto:
+        etiqueta = "em acompanhamento"
+    else:
+        etiqueta = "em atendimento"
+
+    return {
+        "consciencia": consciencia,
+        "objeção": objecao,
+        "etiqueta": etiqueta
+    }
 
 def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
     try:
