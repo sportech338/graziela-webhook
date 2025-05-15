@@ -473,7 +473,7 @@ def quebrar_em_blocos_humanizado(texto, limite=350):
     return blocos, tempos
 
 def remover_emojis_repetidos(texto, emojis_ja_usados):
-    emojis_validos = ["😊", "💙"]
+    emojis_validos = ["😊", "💙", "😔"]
     novos_emojis_usados = []
 
     for emoji in emojis_validos:
@@ -635,20 +635,7 @@ Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergun
 {mensagem_completa}
 
 IMPORTANTE: Antes de apresentar os valores, acolha o cliente com empatia e segurança emocional.  
-Mostre que você entendeu o que ele sente e que o foco é aliviar essa dor com responsabilidade.  
-Exemplos:
-- "Entendo... conviver com isso deve ser bem desgastante mesmo."
-- "A gente só valoriza quando volta a andar sem dor, né?"
-
-Só depois conduza a apresentação dos kits — de forma leve, segura e consultiva.
-
-Apresente todos os kits nesta ordem: 120 → 60 → 30 → 20.  
-Inclua os preços reais.  
-Destaque que o de 30 peças é o mais escolhido por render certinho pra 1 mês.  
-Compare brevemente os benefícios de cada um, reforçando que os maiores aliviam mais rápido e compensam no valor por unidade.
-
-Finalize com uma pergunta consultiva como:
-"Quer que eu te ajude a comparar os kits pra vermos o melhor pra agora?"
+Mostre que você entendeu o que ele sente e que o foco é aliviar essa dor com responsabilidade.
 
 ⚠️ Use no máximo 3 frases curtas por bloco, com até 350 caracteres cada.  
 Separe os blocos com **duas quebras de linha (`\\n\\n`)** para simular uma conversa natural no WhatsApp.  
