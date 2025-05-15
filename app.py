@@ -280,10 +280,8 @@ def analisar_estado_comportamental(mensagem, tentativas=1, followup_em_aberto=Fa
         etiqueta = "Agendado"
     elif "valor" in mensagem or "preço" in mensagem or "quanto custa" in mensagem:
         etiqueta = "Em negociação"
-    elif any(p in mensagem for p in ["como funciona", "é eficaz", "tem efeito", "funciona mesmo", "qual a diferença", "ajuda com dor", "qual o benefício", "é bom"]):
-        etiqueta = "Interessado"
     else:
-        etiqueta = "em atendimento"
+        etiqueta = "Interessado"
 
     # 🔍 Nível de Consciência
     if any(p in mensagem for p in ["o que é isso", "pra que serve", "me explica melhor", "nunca ouvi falar", "minha mãe que mandou", "só vi o anúncio", "tava só olhando", "não sei do que se trata"]):
