@@ -644,10 +644,10 @@ Mantenha os blocos curtos com até 350 caracteres e separados por **duas quebras
     resposta_compacta = "\n\n".join(blocos)
 
     etapas_delay = {
-        "coletando_dados_pessoais": 120,
-        "coletando_endereco": 120,
-        "pagamento_realizado": 25,
-        "aguardando_pagamento": 30
+        "coletando_dados_pessoais": 15,
+        "coletando_endereco": 15,
+        "pagamento_realizado": 15,
+        "aguardando_pagamento": 15
     }
     delay_inicial = etapas_delay.get(etapa, 15)
     if tempos:
