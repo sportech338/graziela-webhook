@@ -531,11 +531,11 @@ def processar_mensagem(telefone):
     etapa = "inicio"
     mensagem_lower = mensagem_completa.lower()   
    
-   if any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "tem desconto"]):
+    if any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "tem desconto"]):
         etapa = "apresentando_valor"
-   elif all(p in mensagem_lower for p in ["nome", "cpf", "telefone"]) and any(p in mensagem_lower for p in ["email", "e-mail"]):
+    elif all(p in mensagem_lower for p in ["nome", "cpf", "telefone"]) and any(p in mensagem_lower for p in ["email", "e-mail"]):
         etapa = "coletando_dados_pessoais"
-   elif all(p in mensagem_lower for p in ["cep", "endereço", "número", "bairro", "cidade"]):
+    elif all(p in mensagem_lower for p in ["cep", "endereço", "número", "bairro", "cidade"]):
         etapa = "coletando_endereco"
     elif any(p in mensagem_lower for p in ["pix", "transferência", "como pagar", "chave"]):
         etapa = "aguardando_pagamento"
