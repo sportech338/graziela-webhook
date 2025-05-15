@@ -496,6 +496,11 @@ def webhook():
                 temp_doc = temp_ref.get()
                 pendentes = temp_doc.to_dict().get("pendentes", []) if temp_doc.exists else []
 
+
+                if any(p["msg_id"] == msg_id for p in pendentes):
+                    print("⚠️ Mensagem já estava na fila temporária. Ignorando duplicata.")
+                    return "ok", 200
+
                 pendentes.append({
                     "texto": nova_mensagem,
                     "timestamp": datetime.utcnow().isoformat(),
@@ -562,7 +567,6 @@ def analisar_estado_comportamental(mensagem: str, tentativas: int, followup_em_a
         "etiqueta": etiqueta
     }
 
-
 def processar_mensagem(telefone):
     time.sleep(15)
     temp_ref = firestore_client.collection("conversas_temp").document(telefone)
@@ -578,6 +582,8 @@ def processar_mensagem(telefone):
     mensagens_ordenadas = sorted(mensagens, key=lambda m: m["timestamp"])
     mensagem_completa = " ".join([m["texto"] for m in mensagens_ordenadas]).strip()
     msg_id = mensagens_ordenadas[-1]["msg_id"]
+    mensagens_restantes = [m for m in mensagens if m["msg_id"] != msg_id]
+    temp_ref.set({"pendentes": mensagens_restantes})
 
     print(f"🧩 Mensagem completa da fila: {mensagem_completa}")
     
