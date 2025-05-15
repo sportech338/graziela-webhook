@@ -510,6 +510,51 @@ def webhook():
         print(f"❌ Erro geral no webhook: {e}")
         return make_response("Erro interno", 500)
 
+def analisar_estado_comportamental(mensagem: str, tentativas: int, followup_em_aberto: bool) -> dict:
+    texto = mensagem.lower()
+
+    if any(p in texto for p in ["me explica", "o que é isso", "pra que serve", "nunca ouvi"]):
+        consciencia = "Inconsciente"
+    elif any(p in texto for p in ["dor", "dói", "não aguento", "me atrapalha", "não consigo"]):
+        consciencia = "Consciente da dor"
+    elif any(p in texto for p in ["funciona", "alivia", "quanto tempo", "natural", "é seguro"]):
+        consciencia = "Consciente da solução"
+    elif any(p in texto for p in ["flexlive", "quero o de", "me manda o link", "qual o melhor kit"]):
+        consciencia = "Consciente do produto"
+    elif any(p in texto for p in ["já fiz o pix", "pode fechar", "meus dados são", "fechado"]):
+        consciencia = "Pronto para comprar"
+    else:
+        consciencia = "Inconsciente"
+
+    if any(p in texto for p in ["caro", "muito caro", "sem grana", "não tenho dinheiro", "tá difícil"]):
+        objecao = "Preço"
+    elif any(p in texto for p in ["vou pensar", "depois eu vejo", "talvez mês que vem", "não sei ainda"]):
+        objecao = "Tempo / indecisão"
+    elif any(p in texto for p in ["não confio", "parece golpe", "é seguro?"]):
+        objecao = "Confiança"
+    else:
+        objecao = None
+
+    if tentativas >= 18 or any(p in texto for p in ["não quero mais", "já resolvi", "cancela", "não confio"]):
+        etiqueta = "Venda perdida"
+    elif any(p in texto for p in ["já fiz o pix", "comprovante", "paguei", "enviei os dados"]):
+        etiqueta = "Venda feita"
+    elif consciencia == "Consciente do produto" and followup_em_aberto:
+        etiqueta = "Agendado"
+    elif consciencia == "Pronto para comprar" and followup_em_aberto:
+        etiqueta = "Agendado"
+    elif consciencia in ["Consciente da solução", "Consciente do produto", "Pronto para comprar"]:
+        etiqueta = "Em negociação"
+    else:
+        etiqueta = "Interessado"
+
+    return {
+        "consciencia": consciencia,
+        "objeção": objecao,
+        "etiqueta": etiqueta
+    }
+
+
 def processar_mensagem(telefone):
     time.sleep(15)
     temp_ref = firestore_client.collection("conversas_temp").document(telefone)
@@ -552,6 +597,19 @@ def processar_mensagem(telefone):
         ]) and all(x in mensagem_lower for x in ["cep", "rua", "bairro", "cidade", "estado"])
     ):
         etapa = "pergunta_forma_pagamento"
+    
+    doc_ref = firestore_client.collection("conversas").document(telefone)
+    doc = doc_ref.get()
+    tentativas = doc.to_dict().get("tentativas", 0) if doc.exists else 0
+    followup_em_aberto = etapa in ["aguardando_pagamento", "agendado", "pergunta_forma_pagamento"]
+
+    estado = analisar_estado_comportamental(mensagem_completa, tentativas, followup_em_aberto)
+
+    firestore_client.collection("conversas").document(telefone).update({
+        "nivel_consciencia": estado["consciencia"],
+        "objecao_atual": estado["objeção"],
+        "etiqueta": estado["etiqueta"]
+    })
 
     prompt = [{"role": "system", "content": BASE_PROMPT}]
     contexto, emojis_ja_usados = obter_contexto(telefone)
