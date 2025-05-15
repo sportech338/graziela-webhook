@@ -544,7 +544,7 @@ def analisar_estado_comportamental(mensagem: str, tentativas: int, followup_em_a
     else:
         objecao = None
 
-    if tentativas >= 18 or any(p in texto for p in ["não quero mais", "já resolvi", "cancela", "não confio"]):
+    if any(p in texto for p in ["não quero mais", "já resolvi", "cancela", "não confio"]):
         etiqueta = "Venda perdida"
     elif any(p in texto for p in ["já fiz o pix", "comprovante", "paguei", "enviei os dados"]):
         etiqueta = "Venda feita"
