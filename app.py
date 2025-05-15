@@ -584,27 +584,21 @@ def processar_mensagem(telefone):
     etapa = "inicio"
     mensagem_lower = mensagem_completa.lower()
 
-    if any(p in mensagem_lower for p in ["paguei", "tá pago", "comprovante", "enviei", "já fiz o pagamento"]):
-        etapa = "pagamento_realizado"
-    elif any(p in mensagem_lower for p in ["pix", "transferência", "como pagar", "chave"]):
-        etapa = "aguardando_pagamento"
-    elif all(p in mensagem_lower for p in ["nome", "cpf", "telefone"]) and any(p in mensagem_lower for p in ["email", "e-mail"]):
+    if all(p in mensagem_lower for p in ["nome", "cpf", "telefone"]) and any(p in mensagem_lower for p in ["email", "e-mail"]):
         etapa = "coletando_dados_pessoais"
     elif all(p in mensagem_lower for p in ["cep", "endereço", "número", "bairro", "cidade"]):
         etapa = "coletando_endereco"
     elif any(p in mensagem_lower for p in ["valor", "preço", "quanto custa", "tem desconto"]):
         etapa = "solicitou_valor"
-    elif any(p in mensagem_lower for p in ["caro", "muito caro", "tá puxado", "sem grana", "não tenho dinheiro", "tá difícil", "no momento não consigo"]):
-        etapa = "resistencia_financeira"
-    elif any(p in mensagem_lower for p in ["anos", "desde pequena", "desde novo", "faz tempo", "há muito tempo", "há anos"]):
-        etapa = "dor_cronica"
-    elif (
-        any(p in mensagem_lower for p in [
-            "quero comprar", "vou querer", "quero esse", "quero sim", "sim quero", "sim por favor",
-            "quero o de", "pode ser esse", "pode ser o de", "vou ficar com"
-        ]) and all(x in mensagem_lower for x in ["cep", "rua", "bairro", "cidade", "estado"])
-    ):
+    elif any(p in mensagem_lower for p in [
+        "quero comprar", "vou querer", "quero esse", "quero sim", "sim quero", 
+        "sim por favor", "quero o de", "pode ser esse", "pode ser o de", "vou ficar com"
+    ]) and all(x in mensagem_lower for x in ["cep", "rua", "bairro", "cidade", "estado"]):
         etapa = "pergunta_forma_pagamento"
+    elif any(p in mensagem_lower for p in ["pix", "transferência", "como pagar", "chave"]):
+        etapa = "aguardando_pagamento"
+    elif any(p in mensagem_lower for p in ["paguei", "tá pago", "comprovante", "enviei", "já fiz o pagamento"]):
+        etapa = "pagamento_realizado"
     
     doc_ref = firestore_client.collection("conversas").document(telefone)
     doc = doc_ref.get()
@@ -617,140 +611,6 @@ def processar_mensagem(telefone):
         prompt.append({"role": "user", "content": f"Histórico da conversa:\n{contexto}"})
     else:
         emojis_ja_usados = []
-
-    if etapa == "solicitou_valor":
-        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
-{mensagem_completa}
-
-IMPORTANTE: Antes de apresentar os valores, acolha o cliente com empatia e segurança emocional.  
-Mostre que você entendeu o que ele sente e que o foco é aliviar essa dor com responsabilidade.  
-Exemplos:
-- "Entendo... conviver com isso deve ser bem desgastante mesmo."
-- "A gente só valoriza quando volta a andar sem dor, né?"
-
-Só depois conduza a apresentação dos kits — de forma leve, segura e consultiva.
-
-Apresente todos os kits nesta ordem: 120 → 60 → 30 → 20.  
-Inclua os preços reais.  
-Destaque que o de 30 peças é o mais escolhido por render certinho pra 1 mês.  
-Compare brevemente os benefícios de cada um, reforçando que os maiores aliviam mais rápido e compensam no valor por unidade.
-
-Finalize com uma pergunta consultiva como:
-"Quer que eu te ajude a comparar os kits pra vermos o melhor pra agora?"
-
-⚠️ Use no máximo 3 frases curtas por bloco, com até 350 caracteres cada.  
-Separe os blocos com **duas quebras de linha (`\\n\\n`)** para simular uma conversa natural no WhatsApp.  
-**Sempre inclua o kit de 120 peças.**
-
-⚠️ NUNCA use frases passivas como:
-- "Se tiver dúvidas, estou à disposição."
-- "Me chama se quiser."
-- "Qualquer coisa, estou por aqui."
-Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa."""})
-
-    elif etapa == "coletando_dados_pessoais":
-        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
-{mensagem_completa}
-
-IMPORTANTE: O cliente demonstrou que quer fechar o pedido. Agora, conduza com leveza a coleta dos dados pessoais em blocos curtos e claros:
-
-Bloco 1:
-"Perfeito! Vamos garantir seu pedido com segurança."
-
-Bloco 2:
-"Para começar, vou precisar de alguns dados seus:
-
-- Nome completo:
-- CPF:
-- Telefone com DDD:"
-
-Bloco 3:
-"Apresenta algum e-mail para envio do código de rastreio?"
-
-⚠️ NUNCA use frases passivas como:
-- "Se tiver dúvidas, estou à disposição."
-- "Me chama se quiser."
-- "Qualquer coisa, estou por aqui."
-Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa."""})
-
-    elif etapa == "coletando_endereco":
-        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
-{mensagem_completa}
-
-IMPORTANTE: O cliente já passou os dados pessoais. Agora peça com gentileza os dados de endereço.
-
-Bloco 1:
-"Agora, vamos precisar do seu endereço completo:
-
-- CEP:
-- Endereço completo:
-- Número:
-- Complemento (opcional):"
-
-Bloco 2:
-"Assim que tiver tudo certinho, seguimos com a finalização do pedido."
-
-⚠️ NUNCA use frases passivas como:
-- "Se tiver dúvidas, estou à disposição."
-- "Me chama se quiser."
-- "Qualquer coisa, estou por aqui."
-Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa."""})
-
-    elif etapa in ["resistencia_financeira", "dor_cronica"]:
-        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
-{mensagem_completa}
-
-IMPORTANTE:
-Comece acolhendo com força emocional e conexão genuína. Demonstre escuta ativa e gere segurança com empatia.  
-**Não apresente preços diretamente ainda.**  
-Primeiro, crie valor e reforce como o Flexlive pode aliviar essa dor de forma leve e segura.
-
-Conduza com frases como:
-- "Nossa, entendo demais. Imagino o quanto deve estar pesado conviver com isso há tanto tempo."
-- "Se for pra investir em algo, que seja no que pode devolver sua qualidade de vida, né?"
-- "A gente só valoriza quando volta a andar sem dor."
-
-Apenas **ao final**, conduza de forma sutil para apresentar os kits (em até 3 frases curtas por bloco, separadas por duas quebras de linha \\n\\n), com foco em solução leve e consciente.
-
-⚠️ NUNCA use frases passivas como:
-- "Se tiver dúvidas, estou à disposição."
-- "Me chama se quiser."
-- "Qualquer coisa, estou por aqui."
-Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa."""})
-
-    elif etapa == "pergunta_forma_pagamento":
-        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
-{mensagem_completa}
-
-IMPORTANTE: O cliente já passou os dados e demonstrou que quer finalizar a compra.
-
-Agora, conduza com leveza e segurança:
-
-**\"Prefere Pix à vista com desconto ou cartão em até 12x?\"**
-
-Aguarde a resposta antes de enviar links ou instruções de pagamento.
-
-⚠️ NUNCA use frases passivas como:
-- "Se tiver dúvidas, estou à disposição."
-- "Me chama se quiser."
-- "Qualquer coisa, estou por aqui."
-Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa.
-"""})
-
-    else:
-        prompt.append({"role": "user", "content": f"""Nova mensagem do cliente:
-{mensagem_completa}
-
-IMPORTANTE: Estruture sua resposta em **blocos de até 3 frases curtas**, com no máximo 350 caracteres por bloco. Separe os blocos com **duas quebras de linha (`\\n\\n`)**.
-
-Assim consigo entregar sua resposta no WhatsApp de forma mais natural, simulando uma conversa real.
-
-⚠️ NUNCA use frases passivas como:
-- "Se tiver dúvidas, estou à disposição."
-- "Me chama se quiser."
-- "Qualquer coisa, estou por aqui."
-Essas frases enfraquecem a condução. Você deve sempre terminar com uma pergunta clara, direcionando o próximo passo da conversa.
-"""})
 
     completion = client.chat.completions.create(
         model="gpt-4o",
