@@ -2,6 +2,9 @@ from google.cloud import firestore
 from datetime import datetime
 import os
 from fluxo.servicos.util import criar_arquivo_credenciais
+from fluxo.etapas_jornada import ETAPAS_JORNADA
+from fluxo.consciencia_cliente import CONSCIENCIA_MAPA
+from fluxo.temperatura import MAPA_TEMPERATURA
 
 CREDENTIALS_PATH = "credentials.json"
 
@@ -9,6 +12,9 @@ if not os.path.exists(CREDENTIALS_PATH):
     criar_arquivo_credenciais(CREDENTIALS_PATH)
 
 firestore_client = firestore.Client.from_service_account_json(CREDENTIALS_PATH)
+
+NIVEIS_CONSCIENCIA = list(CONSCIENCIA_MAPA.keys())
+NIVEIS_TEMPERATURA = list(MAPA_TEMPERATURA.keys())
 
 
 def salvar_no_firestore(
@@ -64,17 +70,29 @@ def salvar_no_firestore(
 
             print("📉 Mensagens antigas resumidas.")
 
+        # Comparar progresso dos pilares
+        etapa_atual = data.get("etapa")
+        consciencia_atual = data.get("consciência")
+        temperatura_atual = data.get("temperatura")
+
+        def avancou(novo, atual, lista):
+            return novo and (atual not in lista or lista.index(novo) > lista.index(atual))
+
+        nova_etapa = etapa_jornada if avancou(etapa_jornada, etapa_atual, ETAPAS_JORNADA) else etapa_atual
+        nova_consciencia = consciencia if avancou(consciencia, consciencia_atual, NIVEIS_CONSCIENCIA) else consciencia_atual
+        nova_temperatura = temperatura if avancou(temperatura, temperatura_atual, NIVEIS_TEMPERATURA) else temperatura_atual
+
         dados_salvos = {
             "telefone": telefone,
-            "etapa": etapa_jornada,
+            "etapa": nova_etapa,
             "ultima_interacao": agora,
             "mensagens": mensagens,
             "resumo": resumo,
             "ultimo_resumo_em": agora.isoformat(),
             "last_msg_id": msg_id,
             "objeção": objecao or data.get("objeção"),
-            "consciência": consciencia or data.get("consciência"),
-            "temperatura": temperatura or data.get("temperatura"),
+            "consciência": nova_consciencia,
+            "temperatura": nova_temperatura,
             "justificativa_etapa": justificativa_etapa,
             "justificativa_objecao": justificativa_objecao,
             "justificativa_consciencia": justificativa_consciencia,
@@ -110,7 +128,7 @@ def obter_contexto(telefone: str):
             texto_respostas = " ".join(
                 m["texto"] for m in mensagens if m["quem"] == "graziela"
             )
-            emojis_ja_usados = [e for e in ["😊", "💙"] if e in texto_respostas]
+            emojis_ja_usados = [e for e in ["😊", "💙", "😔"] if e in texto_respostas]
 
             return contexto, emojis_ja_usados
     except Exception as e:
