@@ -506,6 +506,7 @@ def webhook():
                 print("⏳ Mensagem adicionada à fila temporária.")
 
                 threading.Thread(target=processar_mensagem, args=(telefone,)).start()
+                status_doc = firestore_client.collection("status_threads").document(telefone)
                 status_doc.set({"em_execucao": True})
 
             except Exception as e:
