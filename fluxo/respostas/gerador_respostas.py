@@ -2,6 +2,7 @@ import re
 from typing import Optional
 from fluxo.servicos.openai_client import gerar_resposta
 from fluxo.etapas_jornada import ETAPAS_JORNADA
+from fluxo.servicos.util import remover_emojis_repetidos
 
 FRASES_PROIBIDAS = [
     "se tiver dúvidas, estou à disposição",
@@ -13,20 +14,6 @@ def contem_frase_proibida(texto: str) -> bool:
     texto_lower = texto.lower()
     return any(frase in texto_lower for frase in FRASES_PROIBIDAS)
 
-def remover_emojis_repetidos(texto: str, emojis_ja_usados: list[str]) -> tuple[str, list[str]]:
-    emojis_validos = ["😊", "💙"]
-    novos_emojis_usados = []
-
-    for emoji in emojis_validos:
-        ocorrencias = [m.start() for m in re.finditer(re.escape(emoji), texto)]
-        if emoji in emojis_ja_usados and ocorrencias:
-            texto = texto.replace(emoji, "", len(ocorrencias))
-        elif ocorrencias:
-            texto = texto.replace(emoji, "", len(ocorrencias) - 1)
-            novos_emojis_usados.append(emoji)
-
-    return texto, novos_emojis_usados
-
 def gerar_resposta_formatada(prompt: list[dict], emojis_ja_usados: list[str]) -> tuple[Optional[str], list[str]]:
     resposta = gerar_resposta(prompt)
     if not resposta:
@@ -35,14 +22,14 @@ def gerar_resposta_formatada(prompt: list[dict], emojis_ja_usados: list[str]) ->
     resposta, novos_emojis = remover_emojis_repetidos(resposta, emojis_ja_usados)
 
     if contem_frase_proibida(resposta):
-        print("⚠️ Frase passiva detectada. Solicitando reformulação automática.")
+        print("\u26a0\ufe0f Frase passiva detectada. Solicitando reformulação automática.")
         reformulacao_prompt = [
             {"role": "system", "content": "Você é Graziela, consultora da Sportech. Reformule a mensagem anterior."},
             {"role": "user", "content": f"""Essa foi a resposta que você deu:
 
 {resposta}
 
-⚠️ Ela termina com uma frase passiva que não conduz a conversa.
+⚠\ufe0f Ela termina com uma frase passiva que não conduz a conversa.
 
 Reescreva com tom gentil, mas encerrando com uma pergunta clara que incentive a continuidade da conversa.
 
@@ -77,7 +64,7 @@ def montar_prompt_por_etapa(
     if ambiguidade_justificativa:
         prompt.append({
             "role": "user",
-            "content": f"""⚠️ Atenção: Pode haver ambiguidade, dúvida ou ironia na última mensagem. 
+            "content": f"""⚠\ufe0f Atenção: Pode haver ambiguidade, dúvida ou ironia na última mensagem. 
 
 {ambiguidade_justificativa}
 
@@ -88,13 +75,13 @@ Use o histórico para validar se é o caso e responda de forma empática e clara
         justificativa_txt = f"\n\nContexto adicional: {justificativa_objecao}" if justificativa_objecao else ""
         prompt.append({
             "role": "user",
-            "content": f"""⚠️ Objeção detectada: {objecao.replace("_", " ").capitalize()}.{justificativa_txt}
+            "content": f"""⚠\ufe0f Objeção detectada: {objecao.replace("_", " ").capitalize()}.{justificativa_txt}
 
 Antes de seguir normalmente, contorne a objeção com empatia, prova social e reforço de confiança.
 
 Só depois retome o fluxo com condução leve e consultiva.
 
-⚠️ Use blocos curtos (máx. 350 caracteres), com duas quebras de linha entre eles."""
+⚠\ufe0f Use blocos curtos (máx. 350 caracteres), com duas quebras de linha entre eles."""
         })
 
     if justificativa_etapa:
