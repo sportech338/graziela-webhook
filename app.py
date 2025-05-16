@@ -517,7 +517,7 @@ def quebrar_em_blocos_humanizado(texto, limite=350):
     # Definindo os tempos de espera entre blocos
     for i, bloco in enumerate(blocos):
         if i == 0:
-            tempos.append(15)
+            tempos.append(20)
         elif len(bloco) > 250:
             tempos.append(6)
         elif len(bloco) > 100:
@@ -782,7 +782,7 @@ def processar_mensagem(telefone):
             "pagamento_realizado": 15,
             "aguardando_pagamento": 15
         }
-        delay_inicial = etapas_delay.get(etapa, 15)
+        delay_inicial = etapas_delay.get(etapa, 20)
         if tempos:
             tempos[0] = delay_inicial
 
