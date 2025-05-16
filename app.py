@@ -225,7 +225,7 @@ firestore_client = firestore.Client(credentials=credentials, project=info["proje
 
 def registrar_no_sheets(telefone, mensagem, resposta):
     try:
-        creds = Credentials.from_service_account_file(CREDENTIALS_PATH, scopes=SCOPES)
+        creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
         gc = gspread.authorize(creds)
         sheet = gc.open(SPREADSHEET_NAME).sheet1
         agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
