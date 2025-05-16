@@ -142,6 +142,7 @@ Apresenta algum e-mail para envio do código de rastreio?"
 Pix (em blocos):  
 "Excelente! Abaixo, vou te passar a chave Pix (CNPJ) pra gente garantir o seu pedido com agilidade e segurança, tudo bem?"  
 52.940.645/0001-08
+• Valor 🟰 ...
 "Assim que fizer o pagamento, me envia o comprovante aqui mesmo. Assim consigo confirmar rapidinho no sistema e seguir com o envio do seu pedido."
 
 🔍 OBJEÇÕES
