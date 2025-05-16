@@ -210,7 +210,7 @@ Produto:
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 SPREADSHEET_NAME = "Histórico de conversas | Graziela"
 
-
+# Decodifica e carrega as credenciais
 encoded = os.environ.get("GOOGLE_CREDENTIALS_BASE64")
 if not encoded:
     raise ValueError("Variável GOOGLE_CREDENTIALS_BASE64 não encontrada.")
@@ -218,16 +218,16 @@ if not encoded:
 decoded = base64.b64decode(encoded).decode("utf-8")
 info = json.loads(decoded)
 
-# Usa o dict para criar as credenciais
-credentials = service_account.Credentials.from_service_account_info(info)
-firestore_client = firestore.Client(credentials=credentials, project=info["project_id"])
+# Cria credenciais com escopos para Firestore e Sheets
+creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
 
+# Inicializa o cliente do Firestore com as mesmas credenciais
+firestore_client = firestore.Client(credentials=creds, project=info["project_id"])
 
 def registrar_no_sheets(telefone, mensagem, resposta):
     try:
-        creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
         gc = gspread.authorize(creds)
-        sheet = gc.open(SPREADSHEET_NAME).sheet1
+        sheet = gc.open(SPREADSHEET_NAME).sheet1  # ou .worksheet("NomeDaAba") se quiser ser explícito
         agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         sheet.append_row([telefone, mensagem, resposta, agora])
         print("📄 Conversa registrada no Google Sheets.")
