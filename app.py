@@ -194,19 +194,25 @@ Pix (em blocos):
 📦 REFERÊNCIA INTERNA (NÃO RESPONDER DIRETAMENTE)
 
 Kits e preços:  
-• 20 peças – R$99,87 (à vista recebe 3% de desconto)
-• 30 peças – R$129,90 → Mais vendido (à vista recebe 3% de desconto) 
-• 60 peças – R$169,90 → Mais alívio e economia (à vista recebe 3% de desconto) 
-• 120 peças – R$229,90 → Melhor custo-benefício (à vista recebe 3% de desconto) 
+• 20 peças – R$99,87
+
+• 30 peças – R$129,90 → Mais vendido
+
+• 60 peças – R$169,90 → Mais alívio e economia
+
+• 120 peças – R$229,90 → Melhor custo-benefício
 
 Links:  
 • 20 peças: https://seguro.lojasportech.com/r/1N5JPRTY2O  
+
 • 30 peças: https://seguro.lojasportech.com/r/LSLZ9IL8GC  
+
 • 60 peças: https://seguro.lojasportech.com/r/GPX892TWJC  
+
 • 120 peças: https://seguro.lojasportech.com/r/OCTSSSZKVU  
 
 Pagamento:  
-• Pix (CNPJ): 52.940.645/0001-08  
+• Pix (CNPJ): 52.940.645/0001-08  -> (à vista recebe 3% de desconto)
 • Cartão (até 12x) - Sendo 2x sem juros
 • Boleto (3 dias úteis)
 
