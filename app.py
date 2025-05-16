@@ -638,10 +638,10 @@ def processar_mensagem(telefone):
         prompt.append({"role": "user", "content": f"Histórico da conversa:\n{contexto}"})
     else:
         emojis_ja_usados = []
- 
+
     prompt.append({
         "role": "user",
-        "content": f"O cliente disse: \"{mensagem_completa}\"\n\nResponda como Graziela, seguindo o estilo e as regras do prompt."
+        "content": f'O cliente disse: "{mensagem_completa}"\n\nResponda como Graziela, seguindo o estilo e as regras do prompt.'
     })
 
     completion = client.chat.completions.create(
@@ -661,15 +661,7 @@ def processar_mensagem(telefone):
         print(f"🔁 Etapa atualizada automaticamente: {etapa} → {nova_etapa}")
         etapa = nova_etapa
 
-    def contem_frase_proibida(texto):
-        frases_proibidas = [
-            "se tiver dúvidas, estou à disposição",
-            "me chama se quiser",
-            "qualquer coisa, estou por aqui"
-        ]
-        texto_lower = texto.lower()
-        return any(frase in texto_lower for frase in frases_proibidas)
-
+    # 🔍 Verifica se há frase passiva proibida com similaridade
     if contem_frase_proibida(resposta):
         print("⚠️ Frase passiva proibida detectada. Requisitando reformulação automática...")
         reformulacao_prompt = [
@@ -716,18 +708,17 @@ Mantenha os blocos curtos com até 350 caracteres e separados por **duas quebras
     if tempos:
         tempos[0] = delay_inicial
 
-        doc_ref = firestore_client.collection("conversas").document(telefone)
-        doc = doc_ref.get()
-        if doc.exists and doc.to_dict().get("last_msg_id") == msg_id:
-            print("⚠️ Mensagem já foi processada. Pulando salvar_no_firestore.")
-        else:
-            if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
-                return
+    doc_ref = firestore_client.collection("conversas").document(telefone)
+    doc = doc_ref.get()
+    if doc.exists and doc.to_dict().get("last_msg_id") == msg_id:
+        print("⚠️ Mensagem já foi processada. Pulando salvar_no_firestore.")
+    else:
+        if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
+            return
 
     whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
     headers = {
         "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN']}",
-        
         "Content-Type": "application/json"
     }
 
