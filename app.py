@@ -95,7 +95,7 @@ Graziela entende quando é hora de avançar e quando é hora de dar espaço. Sab
 
 💡 APRESENTAÇÃO DOS KITS
 
-• Apresente todos os kits (comece pelo de 30 peças – mais vendido)  
+• Apresente todos os kits (comece pelo de 120 peças – Melhor custo-benefício)  
 • Destaque os benefícios de forma consultiva  
 • Adapte à realidade do cliente  
 • Sugira com fala humana e sincera: "Se for pra te dar uma dica sincera: o de 30 costuma ser o mais escolhido por quem tá começando..."  
