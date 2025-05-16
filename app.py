@@ -12,6 +12,8 @@ import time
 from collections import defaultdict
 import threading
 import re
+from rapidfuzz import fuzz
+from textwrap import shorten
 
 app = Flask(__name__)
 client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
@@ -183,24 +185,16 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapi
 SPREADSHEET_NAME = "Histórico de conversas | Graziela"
 
 
-def criar_arquivo_credenciais():
-    try:
-        encoded = os.environ.get("GOOGLE_CREDENTIALS_BASE64")
-        if not encoded:
-            raise ValueError("Variável GOOGLE_CREDENTIALS_BASE64 não encontrada.")
-        decoded = base64.b64decode(encoded).decode("utf-8")
-        with open("credentials.json", "w") as f:
-            f.write(decoded)
-        print("🔐 Arquivo credentials.json criado com sucesso.")
-    except Exception as e:
-        print(f"❌ Erro ao criar credentials.json: {e}")
+encoded = os.environ.get("GOOGLE_CREDENTIALS_BASE64")
+if not encoded:
+    raise ValueError("Variável GOOGLE_CREDENTIALS_BASE64 não encontrada.")
 
+decoded = base64.b64decode(encoded).decode("utf-8")
+info = json.loads(decoded)
 
-if not os.path.exists("credentials.json"):
-    criar_arquivo_credenciais()
-
-CREDENTIALS_PATH = "credentials.json"
-firestore_client = firestore.Client.from_service_account_json(CREDENTIALS_PATH)
+# Usa o dict para criar as credenciais
+credentials = service_account.Credentials.from_service_account_info(info)
+firestore_client = firestore.Client(credentials=credentials, project=info["project_id"])
 
 
 def registrar_no_sheets(telefone, mensagem, resposta):
@@ -214,50 +208,82 @@ def registrar_no_sheets(telefone, mensagem, resposta):
     except Exception as e:
         print(f"❌ Erro ao registrar no Google Sheets: {e}")
 
-def analisar_estado_comportamental(mensagem, tentativas=1, followup_em_aberto=False):
-    mensagem = mensagem.lower()
+ETIQUETA_PRIORIDADE = {
+    "Venda feita": 5,
+    "Venda perdida": 4,
+    "Agendado": 3,
+    "Em negociação": 2,
+    "Interessado": 1
+}
 
-    # 🏷️ Etiqueta (Status Comercial)
-    if tentativas >= 18 or any(frase in mensagem for frase in ["não quero mais", "cancela", "desiste", "quero cancelar"]):
-        etiqueta = "Venda perdida"
-    elif any(p in mensagem for p in ["comprovante", "paguei", "tá pago", "já fiz o pix", "enviei o pagamento"]):
-        etiqueta = "Venda feita"
-    elif any(p in mensagem for p in ["me chama", "às", "as ", "dia", "horário", "horas", "às ", "as ", "amanhã", "depois das", "semana que vem"]):
-        etiqueta = "Agendado"
-    elif "valor" in mensagem or "preço" in mensagem or "quanto custa" in mensagem:
-        etiqueta = "Em negociação"
-    else:
-        etiqueta = "Interessado"
+def analisar_estado_comportamental(mensagem):
+    mensagem = mensagem.lower().strip()
 
-    # 🔍 Nível de Consciência
-    if any(p in mensagem for p in ["dói muito", "dor no", "minha dor", "tá doendo", "não consigo andar", "não consigo dormir",  "tô cansado dessa dor", "essa dor me atrapalha", "uso remédio todo dia", "já tentei várias coisas"]):
+    def fuzzy(padroes):
+        return fuzzy_match(mensagem, padroes, limiar=85)
+
+    # 🔍 Consciência
+    if fuzzy(["dói muito", "dor no", "minha dor", "tá doendo", "não consigo andar", "tô cansado dessa dor"]):
         consciencia = "Sabe da dor"
-    elif any(p in mensagem for p in ["já tentei de tudo", "nada funciona", "nada resolve", "já usei isso", "já comprei", "não resolveu"]):
+    elif fuzzy(["já tentei de tudo", "nada resolve", "já usei isso", "não resolveu"]):
         consciencia = "Sabe da solução"
-    elif any(p in mensagem for p in ["Tenho interesse", "quero o flexlive", "quero o de 30", "qual o melhor kit", "me manda o link", "prefiro pix", "qual a diferença dos kits", "tem o de 60 peças"]):
+    elif fuzzy(["quero o flexlive", "quero o de 30", "prefiro pix", "tem o de 60 peças"]):
         consciencia = "Sabe do produto"
-    elif any(p in mensagem for p in ["já fiz o pix", "pode fechar", "quero fechar hoje", "meu cpf é", "vou querer o de 120",  "pode mandar", "quero garantir o meu", "vou comprar agora"]):
+    elif fuzzy(["já fiz o pix", "vou querer o de 120", "pode fechar", "meu cpf é"]):
         consciencia = "Já quer comprar"
     else:
         consciencia = "Pouco consciente"
 
-    # 🙅 Objeções
-    if any(p in mensagem for p in ["caro", "muito caro", "tá caro", "sem dinheiro", "não posso pagar", "desconto", "tem mais barato", "valor alto", "muito alto", "difícil pra mim agora"]):
+    # 🙅 Objeção
+    if fuzzy(["tá caro", "sem dinheiro", "desconto", "valor alto"]):
         objecao = "Preço"
-    elif any(p in mensagem for p in ["funciona mesmo", "parece golpe", "tem garantia", "é seguro", "parece mentira",  "não acredito", "é confiável", "não confio", "medo de comprar", "tem registro",  "tenho receio", "parece arriscado", "já fui enganado", "não conheço a empresa"]):
+    elif fuzzy(["parece golpe", "tem garantia", "é seguro", "não confio"]):
         objecao = "Confiança"
-    elif any(p in mensagem for p in ["vou pensar", "depois eu vejo", "te chamo mais tarde", "vou falar com meu marido",  "ainda não sei", "talvez", "estou indecisa", "estou em dúvida", "quem sabe depois",  "mais pra frente", "agora não dá", "depois eu volto", "vou decidir ainda"]):
+    elif fuzzy(["vou pensar", "ainda não sei", "mais pra frente", "estou em dúvida"]):
         objecao = "Indecisão"
-    elif any(p in mensagem for p in ["não posso", "não quero", "não me interessa", "não serve pra mim", "não preciso",  "não ajuda", "já estou tratando", "não tenho dor", "já uso outro", "não vejo necessidade",  "já resolvi meu problema", "não uso essas coisas"]):
+    elif fuzzy(["não me interessa", "não uso essas coisas", "já resolvi meu problema"]):
         objecao = "Necessidade"
     else:
         objecao = "Nenhuma"
 
     return {
         "consciencia": consciencia,
-        "objeção": objecao,
-        "etiqueta": etiqueta
+        "objeção": objecao
     }
+
+
+def detectar_etiqueta(mensagem, tentativas=1):
+    mensagem = mensagem.lower().strip()
+
+    def fuzzy(padroes):
+        return fuzzy_match(mensagem, padroes, limiar=85)
+
+    if tentativas >= 18 or fuzzy(["não quero mais", "cancela", "desiste", "quero cancelar"]):
+        return "Venda perdida"
+    elif fuzzy(["comprovante", "paguei", "tá pago", "já fiz o pix", "enviei o pagamento"]):
+        return "Venda feita"
+    elif fuzzy(["me chama", "às", "dia", "horário", "horas", "amanhã", "depois das", "semana que vem"]):
+        return "Agendado"
+    elif fuzzy(["valor", "preço", "quanto custa"]):
+        return "Em negociação"
+    else:
+        return "Interessado"
+
+
+def atualizar_etiqueta(etiqueta_atual, nova_etiqueta):
+    prioridade_atual = ETIQUETA_PRIORIDADE.get(etiqueta_atual, 0)
+    prioridade_nova = ETIQUETA_PRIORIDADE.get(nova_etiqueta, 0)
+
+    if nova_etiqueta == "Venda perdida" and etiqueta_atual != "Venda feita":
+        print(f"⚠️ Rebaixando etiqueta para 'Venda perdida' por cancelamento ou abandono.")
+        return "Venda perdida"
+
+    if prioridade_nova > prioridade_atual:
+        print(f"🔁 Etiqueta atualizada: {etiqueta_atual} → {nova_etiqueta}")
+        return nova_etiqueta
+
+    print(f"🔒 Etiqueta mantida: {etiqueta_atual} (nova tentativa: {nova_etiqueta})")
+    return etiqueta_atual
 
 def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
     try:
@@ -280,26 +306,32 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
         if len(mensagens) > 40:
             texto_completo = "\n".join([f"{'Cliente' if m['quem']=='cliente' else 'Graziela'}: {m['texto']}" for m in mensagens])
             novo_resumo = resumir_historico(texto_completo)
-            resumo = f"{resumo}\n{novo_resumo}".strip()
+            resumo_completo = f"{resumo.strip()}\n{novo_resumo.strip()}".strip()
+            resumo = shorten(resumo_completo, width=2000, placeholder="...")
             mensagens = mensagens[-6:]
             print("📉 Mensagens antigas resumidas.")
 
-        followup_em_aberto = etapa in ["aguardando_pagamento", "agendado", "pergunta_forma_pagamento"]
-        estado = analisar_estado_comportamental(mensagem, tentativas, followup_em_aberto)
- 
-        doc_ref.set({
+        estado = analisar_estado_comportamental(mensagem)
+        etiqueta_nova = detectar_etiqueta(mensagem, tentativas)
+        etiqueta_final = atualizar_etiqueta(data.get("etiqueta", "Interessado"), etiqueta_nova)
+
+        atualizacao = {
             "telefone": telefone,
             "etapa": etapa,
             "ultima_interacao": agora,
             "mensagens": mensagens,
             "resumo": resumo,
-            "ultimo_resumo_em": agora.isoformat(),
             "last_msg_id": msg_id,
             "tentativas": tentativas,
             "nivel_consciencia": estado["consciencia"],
             "objecao_atual": estado["objeção"],
-            "etiqueta": estado["etiqueta"]
-        })
+            "etiqueta": etiqueta_final
+        }
+
+        if 'novo_resumo' in locals() and novo_resumo:
+            atualizacao["ultimo_resumo_em"] = agora.isoformat()
+
+        doc_ref.set(atualizacao, merge=True)
         print("📦 Mensagens salvas e histórico controlado no Firestore.")
         return True
 
@@ -428,45 +460,41 @@ def remover_emojis_repetidos(texto, emojis_ja_usados):
 
     return texto, novos_emojis_usados
 
+def fuzzy_match(texto, padroes, limiar=85):
+    return any(fuzz.partial_ratio(texto, padrao) >= limiar for padrao in padroes)
+
 def identificar_proxima_etapa(resposta_lower):
-    if any(p in resposta_lower for p in [
-        "imagino o quanto", "isso impacta", "entendo demais", "pesado conviver", "Vamos juntas", "Me conta",
-        "vamos juntas encontrar", "diz muito sobre você", "abrir mão disso", "deve ser difícil conviver"
-    ]):
-        return "momento_conexao"
-    
-    elif any(p in resposta_lower for p in [
-        "com base no que você compartilhou", "posso te mostrar os kits",
-        "vou te apresentar as opções", "valores são", "kit mais vendido", "custam", "valor", "preço", "quanto custa", "tem desconto"
-    ]):
-        return "apresentando_preço"
-    
-    elif any(p in resposta_lower for p in [
-        "vou precisar dos seus dados", "preciso de algumas informações suas",
-        "pra garantir seu pedido", "vamos garantir seu pedido", "dados pessoais", "nome completo", "cpf", "telefone com ddd"
-    ]):
-        return "coletando_dados_pessoais"
-    
-    elif any(p in resposta_lower for p in [
-        "vamos precisar do seu endereço", "endereço completo", "cep", "número", "bairro", "complemento (opcional)"
-    ]):
-        return "coletando_endereco"
-    
-    elif any(p in resposta_lower for p in [
-        "prefere pix", "cartão em até 12x", "forma de pagamento", "como prefere pagar"
-    ]):
-        return "metodo_pagamento"
-    
-    elif any(p in resposta_lower for p in [
-        "vou te passar a chave pix", "chave pix (cnpj)", "abaixo segue a chave", "para garantir seu pedido via pix"
-    ]):
-        return "aguardando_pagamento"
-    
-    elif any(p in resposta_lower for p in [
-        "me envia o comprovante", "confirmar rapidinho no sistema", "envia aqui o pagamento", "assim consigo confirmar"
-    ]):
-        return "pagamento_confirmado"
-    
+    etapas = {
+        "momento_conexao": [
+            "imagino o quanto", "isso impacta", "entendo demais", "pesado conviver",
+            "vamos juntas", "me conta", "vamos juntas encontrar", "diz muito sobre você", "abrir mão disso", "deve ser difícil conviver"
+        ],
+        "apresentando_preço": [
+            "com base no que você compartilhou", "posso te mostrar os kits",
+            "vou te apresentar as opções", "valores são", "kit mais vendido", "custam", "valor", "preço", "quanto custa", "tem desconto"
+        ],
+        "coletando_dados_pessoais": [
+            "vou precisar dos seus dados", "preciso de algumas informações suas",
+            "pra garantir seu pedido", "vamos garantir seu pedido", "dados pessoais", "nome completo", "cpf", "telefone com ddd"
+        ],
+        "coletando_endereco": [
+            "vamos precisar do seu endereço", "endereço completo", "cep", "número", "bairro", "complemento (opcional)"
+        ],
+        "metodo_pagamento": [
+            "prefere pix", "cartão em até 12x", "forma de pagamento", "como prefere pagar"
+        ],
+        "aguardando_pagamento": [
+            "vou te passar a chave pix", "chave pix (cnpj)", "abaixo segue a chave", "para garantir seu pedido via pix"
+        ],
+        "pagamento_confirmado": [
+            "me envia o comprovante", "confirmar rapidinho no sistema", "envia aqui o pagamento", "assim consigo confirmar"
+        ]
+    }
+
+    for etapa, frases in etapas.items():
+        if fuzzy_match(resposta_lower, frases, limiar=85):
+            return etapa
+
     return None
 
 @app.route("/", methods=["GET"])
