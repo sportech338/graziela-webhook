@@ -210,38 +210,38 @@ Produto:
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 SPREADSHEET_NAME = "Histórico de conversas | Graziela"
 
-# Decodifica e carrega as credenciais
-encoded = os.environ.get("GOOGLE_CREDENTIALS_BASE64")
-if not encoded:
-    raise ValueError("Variável GOOGLE_CREDENTIALS_BASE64 não encontrada.")
 
-decoded = base64.b64decode(encoded).decode("utf-8")
-info = json.loads(decoded)
+def criar_arquivo_credenciais():
+    try:
+        encoded = os.environ.get("GOOGLE_CREDENTIALS_BASE64")
+        if not encoded:
+            raise ValueError("Variável GOOGLE_CREDENTIALS_BASE64 não encontrada.")
+        decoded = base64.b64decode(encoded).decode("utf-8")
+        with open("credentials.json", "w") as f:
+            f.write(decoded)
+        print("🔐 Arquivo credentials.json criado com sucesso.")
+    except Exception as e:
+        print(f"❌ Erro ao criar credentials.json: {e}")
 
-# Cria credenciais com escopos para Firestore e Sheets
-creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
 
-# Inicializa o cliente do Firestore com as mesmas credenciais
-firestore_client = firestore.Client(credentials=creds, project=info["project_id"])
+if not os.path.exists("credentials.json"):
+    criar_arquivo_credenciais()
+
+CREDENTIALS_PATH = "credentials.json"
+firestore_client = firestore.Client.from_service_account_json(CREDENTIALS_PATH)
+
 
 def registrar_no_sheets(telefone, mensagem, resposta):
     try:
+        creds = Credentials.from_service_account_file(CREDENTIALS_PATH, scopes=SCOPES)
         gc = gspread.authorize(creds)
-        print("✅ Autorizado com gspread")
-
-        planilhas = gc.openall()
-        print("🗂️ Planilhas disponíveis:")
-        for p in planilhas:
-            print("  -", p.title)
-
         sheet = gc.open(SPREADSHEET_NAME).sheet1
-        print("📄 Planilha acessada:", sheet.title)
-
         agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         sheet.append_row([telefone, mensagem, resposta, agora])
-        print("📌 Linha adicionada ao Google Sheets com sucesso.")
+        print("📄 Conversa registrada no Google Sheets.")
     except Exception as e:
         print(f"❌ Erro ao registrar no Google Sheets: {e}")
+
 
 ETIQUETA_PRIORIDADE = {
     "Venda feita": 5,
