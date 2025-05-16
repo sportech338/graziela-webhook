@@ -639,21 +639,6 @@ def webhook():
         print(f"❌ Erro geral no webhook: {e}")
         return make_response("Erro interno", 500)
 
-FRASES_PROIBIDAS = [
-    "estou à disposição",
-    "qualquer coisa, estou por aqui",
-    "se precisar, me avisa",
-    "fico à disposição",
-    "estarei por aqui",
-    "qualquer dúvida, me chama",
-    "qualquer coisa, estou disponível"
-]
-
-def contem_frase_proibida(texto):
-    texto = texto.lower()
-    return any(fuzz.partial_ratio(texto, frase) >= 85 for frase in FRASES_PROIBIDAS)
-
-
 def processar_mensagem(telefone):
     time.sleep(15)
     temp_ref = firestore_client.collection("conversas_temp").document(telefone)
