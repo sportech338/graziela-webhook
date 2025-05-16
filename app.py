@@ -626,9 +626,31 @@ def webhook():
                 print("⏳ Mensagem adicionada à fila temporária.")
 
                 status_doc = firestore_client.collection("status_threads").document(telefone)
-                if not status_doc.get().exists:
-                    status_doc.set({"em_execucao": True})
-                    threading.Thread(target=processar_mensagem, args=(telefone,)).start()
+
+status_data = status_doc.get().to_dict()
+agora = datetime.utcnow()
+reprocessar = False
+
+if status_data:
+    iniciado_em_str = status_data.get("iniciado_em")
+    if iniciado_em_str:
+        try:
+            iniciado_em = datetime.fromisoformat(iniciado_em_str)
+            if (agora - iniciado_em).total_seconds() > 180:
+                print("⏳ Thread anterior travada há mais de 3 minutos. Reprocessando.")
+                reprocessar = True
+        except Exception as e:
+            print(f"⚠️ Erro ao interpretar timestamp de status_threads: {e}")
+            reprocessar = True
+else:
+    reprocessar = True
+
+if reprocessar:
+    status_doc.set({
+        "em_execucao": True,
+        "iniciado_em": agora.isoformat()
+    })
+    threading.Thread(target=processar_mensagem, args=(telefone,)).start()
 
             except Exception as e:
                 print(f"❌ Erro ao adicionar à fila temporária: {e}")
@@ -655,61 +677,61 @@ def contem_frase_proibida(texto):
 
 
 def processar_mensagem(telefone):
-    time.sleep(15)
-    temp_ref = firestore_client.collection("conversas_temp").document(telefone)
-    temp_doc = temp_ref.get()
-    if not temp_doc.exists:
-        return
+    try:
+        time.sleep(15)
+        temp_ref = firestore_client.collection("conversas_temp").document(telefone)
+        temp_doc = temp_ref.get()
+        if not temp_doc.exists:
+            return
 
-    dados = temp_doc.to_dict()
-    mensagens = dados.get("pendentes", [])
-    if not mensagens:
-        return
+        dados = temp_doc.to_dict()
+        mensagens = dados.get("pendentes", [])
+        if not mensagens:
+            return
 
-    mensagens_ordenadas = sorted(mensagens, key=lambda m: m["timestamp"])
-    mensagem_completa = " ".join([m["texto"] for m in mensagens_ordenadas]).strip()
-    msg_id = mensagens_ordenadas[-1]["msg_id"]
+        mensagens_ordenadas = sorted(mensagens, key=lambda m: m["timestamp"])
+        mensagem_completa = " ".join([m["texto"] for m in mensagens_ordenadas]).strip()
+        msg_id = mensagens_ordenadas[-1]["msg_id"]
 
-    print(f"🧩 Mensagem completa da fila: {mensagem_completa}")
-    
-    doc = firestore_client.collection("conversas").document(telefone).get()
-    etapa = doc.to_dict().get("etapa", "inicio") if doc.exists else "inicio"
+        print(f"🧩 Mensagem completa da fila: {mensagem_completa}")
+        
+        doc = firestore_client.collection("conversas").document(telefone).get()
+        etapa = doc.to_dict().get("etapa", "inicio") if doc.exists else "inicio"
 
-    prompt = [{"role": "system", "content": BASE_PROMPT}]
-    contexto, emojis_ja_usados = obter_contexto(telefone)
-    if contexto:
-        prompt.append({"role": "user", "content": f"Histórico da conversa:\n{contexto}"})
-    else:
-        emojis_ja_usados = []
+        prompt = [{"role": "system", "content": BASE_PROMPT}]
+        contexto, emojis_ja_usados = obter_contexto(telefone)
+        if contexto:
+            prompt.append({"role": "user", "content": f"Histórico da conversa:\n{contexto}"})
+        else:
+            emojis_ja_usados = []
 
-    prompt.append({
-        "role": "user",
-        "content": f'O cliente disse: "{mensagem_completa}"\n\nResponda como Graziela, seguindo o estilo e as regras do prompt.'
-    })
+        prompt.append({
+            "role": "user",
+            "content": f'O cliente disse: "{mensagem_completa}"\n\nResponda como Graziela, seguindo o estilo e as regras do prompt.'
+        })
 
-    completion = client.chat.completions.create(
-        model="gpt-4o",
-        messages=prompt,
-        temperature=0.5,
-        max_tokens=300
-    )
+        completion = client.chat.completions.create(
+            model="gpt-4o",
+            messages=prompt,
+            temperature=0.5,
+            max_tokens=300
+        )
 
-    resposta = completion.choices[0].message.content.strip()
-    print(f"🤖 GPT: {resposta}")
-    resposta, novos_emojis = remover_emojis_repetidos(resposta, emojis_ja_usados)
+        resposta = completion.choices[0].message.content.strip()
+        print(f"🤖 GPT: {resposta}")
+        resposta, novos_emojis = remover_emojis_repetidos(resposta, emojis_ja_usados)
 
-    resposta_lower = resposta.lower()
-    nova_etapa = identificar_proxima_etapa(resposta_lower)
-    if nova_etapa and nova_etapa != etapa:
-        print(f"🔁 Etapa atualizada automaticamente: {etapa} → {nova_etapa}")
-        etapa = nova_etapa
+        resposta_lower = resposta.lower()
+        nova_etapa = identificar_proxima_etapa(resposta_lower)
+        if nova_etapa and nova_etapa != etapa:
+            print(f"🔁 Etapa atualizada automaticamente: {etapa} → {nova_etapa}")
+            etapa = nova_etapa
 
-    # 🔍 Verifica se há frase passiva proibida com similaridade
-    if contem_frase_proibida(resposta):
-        print("⚠️ Frase passiva proibida detectada. Requisitando reformulação automática...")
-        reformulacao_prompt = [
-            {"role": "system", "content": "Você é Graziela, consultora da Sportech. Reformule a mensagem anterior."},
-            {"role": "user", "content": f"""Essa foi a resposta que você deu:
+        if contem_frase_proibida(resposta):
+            print("⚠️ Frase passiva proibida detectada. Requisitando reformulação automática...")
+            reformulacao_prompt = [
+                {"role": "system", "content": "Você é Graziela, consultora da Sportech. Reformule a mensagem anterior."},
+                {"role": "user", "content": f"""Essa foi a resposta que você deu:
 
 {resposta}
 
@@ -718,70 +740,73 @@ def processar_mensagem(telefone):
 Reescreva de forma gentil e consultiva, **removendo a frase passiva** e encerrando com uma pergunta clara que incentive o cliente a continuar a conversa.
 
 Mantenha os blocos curtos com até 350 caracteres e separados por **duas quebras de linha**."""}
-        ]
+            ]
+            try:
+                nova_resposta = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=reformulacao_prompt,
+                    temperature=0.4,
+                    max_tokens=300
+                ).choices[0].message.content.strip()
+                print("✅ Resposta reformulada automaticamente.")
+                resposta = nova_resposta
+                resposta, novos_emojis = remover_emojis_repetidos(resposta, emojis_ja_usados)
+            except Exception as e:
+                print(f"❌ Erro ao reformular resposta: {e}")
+                resposta += "\n\n(Por favor, reformule com uma pergunta clara ao final)"
 
-        try:
-            nova_resposta = client.chat.completions.create(
-                model="gpt-4o",
-                messages=reformulacao_prompt,
-                temperature=0.4,
-                max_tokens=300
-            ).choices[0].message.content.strip()
+        resposta_normalizada = resposta.replace("\\n\\n", "\n\n").replace("\\n", "\n")
+        blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, limite=350)
+        print(f"🔹 Blocos finais para envio:\n{json.dumps(blocos, indent=2, ensure_ascii=False)}")
+        resposta_compacta = "\n\n".join(blocos)
 
-            print("✅ Resposta reformulada automaticamente.")
-            resposta = nova_resposta
-            resposta, novos_emojis = remover_emojis_repetidos(resposta, emojis_ja_usados)
-
-        except Exception as e:
-            print(f"❌ Erro ao reformular resposta: {e}")
-            resposta += "\n\n(Por favor, reformule com uma pergunta clara ao final)"
-
-    resposta_normalizada = resposta.replace("\\n\\n", "\n\n").replace("\\n", "\n")
-    blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, limite=350)
-    print(f"🔹 Blocos finais para envio:\n{json.dumps(blocos, indent=2, ensure_ascii=False)}")
-    resposta_compacta = "\n\n".join(blocos)
-
-    etapas_delay = {
-        "coletando_dados_pessoais": 40,
-        "coletando_endereco": 60,
-        "pagamento_realizado": 15,
-        "aguardando_pagamento": 15
-    }
-    delay_inicial = etapas_delay.get(etapa, 15)
-    if tempos:
-        tempos[0] = delay_inicial
-
-    doc_ref = firestore_client.collection("conversas").document(telefone)
-    doc = doc_ref.get()
-    if doc.exists and doc.to_dict().get("last_msg_id") == msg_id:
-        print("⚠️ Mensagem já foi processada. Pulando salvar_no_firestore.")
-    else:
-        if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
-            return
-
-    whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
-    headers = {
-        "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN']}",
-        "Content-Type": "application/json"
-    }
-
-    for i, (bloco, delay) in enumerate(zip(blocos, tempos)):
-        payload = {
-            "messaging_product": "whatsapp",
-            "to": telefone,
-            "text": {"body": bloco}
+        etapas_delay = {
+            "coletando_dados_pessoais": 40,
+            "coletando_endereco": 60,
+            "pagamento_realizado": 15,
+            "aguardando_pagamento": 15
         }
-        response = requests.post(whatsapp_url, headers=headers, json=payload)
-        print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {response.status_code} | {response.text}")
-        time.sleep(delay)
-        if response.status_code != 200:
-            print(f"❌ Erro ao enviar bloco {i+1}: {response.text}")
+        delay_inicial = etapas_delay.get(etapa, 15)
+        if tempos:
+            tempos[0] = delay_inicial
 
-    registrar_no_sheets(telefone, mensagem_completa, resposta_compacta)
-    temp_ref.delete()
-    firestore_client.collection("status_threads").document(telefone).delete()
-    print("🧹 Fila temporária limpa.")
-    print("🔁 Thread finalizada e status limpo.")
+        doc_ref = firestore_client.collection("conversas").document(telefone)
+        doc = doc_ref.get()
+        if doc.exists and doc.to_dict().get("last_msg_id") == msg_id:
+            print("⚠️ Mensagem já foi processada. Pulando salvar_no_firestore.")
+        else:
+            if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
+                return
+
+        whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
+        headers = {
+            "Authorization": f"Bearer {os.environ['WHATSAPP_TOKEN']}",
+            "Content-Type": "application/json"
+        }
+
+        for i, (bloco, delay) in enumerate(zip(blocos, tempos)):
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": telefone,
+                "text": {"body": bloco}
+            }
+            response = requests.post(whatsapp_url, headers=headers, json=payload)
+            print(f"📤 Enviado bloco {i+1}/{len(blocos)}: {response.status_code} | {response.text}")
+            time.sleep(delay)
+            if response.status_code != 200:
+                print(f"❌ Erro ao enviar bloco {i+1}: {response.text}")
+
+        registrar_no_sheets(telefone, mensagem_completa, resposta_compacta)
+
+    except Exception as e:
+        print(f"❌ Erro inesperado em processar_mensagem: {e}")
+
+    finally:
+        firestore_client.collection("status_threads").document(telefone).delete()
+        firestore_client.collection("conversas_temp").document(telefone).delete()
+        print("🧹 Fila temporária e status_threads limpos com segurança.")
+
+
 
 @app.route("/filtrar-etapa/<etapa>", methods=["GET"])
 def filtrar_por_etapa(etapa):
