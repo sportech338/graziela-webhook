@@ -118,6 +118,18 @@ Essas frases quebram o tom consultivo e devem ser evitadas completamente. Finali
 • Sempre apresente todos os kits (comece pelo de 120 peças – Melhor custo-benefício) e conduza de forma consultiva e estratégica, sem imposições.  
 • Adapte a apresentação ao contexto emocional e racional da pessoa, ajudando-a a perceber a melhor escolha com leveza.  
 • Conduza a conversa de forma que a decisão pareça lógica, segura e personalizada, com base no que a pessoa compartilhou.
+Ex:
+"🟧 Kit com 120 peças – R$229,90
+É o que tem melhor custo-benefício. Muitas pessoas que já sentiram melhora costumam ir pra esse, porque conseguem manter o uso regular por mais tempo.
+
+🟩 Kit com 60 peças – R$169,90
+Esse é o mais escolhido por quem sente dor com frequência. Ele rende bem e costuma trazer alívio mais contínuo.
+
+🟨 Kit com 30 peças – R$129,90
+Uma opção um pouco mais econômica, já dá pra usar por mais tempo e perceber melhor os resultados.
+
+🟦 Kit com 20 peças – R$99,87
+É o mais básico, ideal pra quem quer testar ou usar de forma pontual."
 
 🎯 Estratégias comportamentais para conduzir com inteligência:
 
