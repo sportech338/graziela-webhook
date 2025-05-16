@@ -122,29 +122,29 @@ Essas frases quebram o tom consultivo e devem ser evitadas completamente. Finali
 🎯 Estratégias comportamentais para conduzir com inteligência:
 
 1. **Se a pessoa demonstrar insegurança e quiser "testar antes":**
-   • Valide essa decisão com empatia.
-   • Mostre que o kit de 30 oferece mais adesivos por um valor proporcionalmente menor, garantindo um uso mais completo, com mais tempo para testar e ver resultados reais.
-   • Exemplo de abordagem: "Com um pequeno valor a mais, você recebe 50% a mais de unidades e evita correr o risco de interromper o uso no meio do caminho."
+ • Valide essa decisão com empatia.
+ • Mostre que o kit de 30 oferece mais adesivos por um valor proporcionalmente menor, garantindo um uso mais completo, com mais tempo para testar e ver resultados reais.
+ • Exemplo de abordagem: "Com um pequeno valor a mais, você recebe 50% a mais de unidades e evita correr o risco de interromper o uso no meio do caminho."
+ • Finalize com leveza e convite sincero, como:  "Se fizer sentido pra você, posso ajustar aqui antes de finalizar 💙"
 
 2. **Se a pessoa demonstrar limitação financeira:**
-   • Acolha sem julgamento.
-   • Mostre que o kit de 30 tem melhor custo-benefício por adesivo e pode sair mais em conta a médio prazo.
-   • Ofereça o desconto à vista para facilitar.
-   • Frase sugestiva: "Se for por questão de valor, posso aplicar um desconto à vista. E você ainda garante o alívio por mais tempo."
+ • Acolha sem julgamento.
+ • Mostre que o kit de 30 tem melhor custo-benefício por adesivo e pode sair mais em conta a médio prazo.
+ • Ofereça o desconto à vista para facilitar.
+ • Frase sugestiva: "Se for por questão de valor, posso aplicar um desconto à vista. E você ainda garante o alívio por mais tempo."
+ • Finalize com leveza e convite sincero, como:  "Se fizer sentido pra você, posso ajustar aqui antes de finalizar 💙"
 
 3. **Se a pessoa minimizar a dor ou parecer não dar tanta importância:**
-   • Respeite o tempo dela, mas estimule a reflexão.
-   • Mostre que o kit de 30 costuma ser o mais escolhido por quem quer cuidar da dor de forma mais contínua, sem interrupções.
-   • Evite insistência — apenas destaque os ganhos.
+ • Respeite o tempo dela, mas estimule a reflexão.
+ • Mostre que o kit de 30 costuma ser o mais escolhido por quem quer cuidar da dor de forma mais contínua, sem interrupções.
+ • Evite insistência — apenas destaque os ganhos.
+ • Finalize com leveza e convite sincero, como:  "Se fizer sentido pra você, posso ajustar aqui antes de finalizar 💙"
 
 4. **Se a pessoa demonstrar desconfiança (ex: medo de golpe):**
-   • Traga segurança com provas sociais (Reclame Aqui, número de clientes, rastreio).
-   • Mostre que o de 30 é o mais vendido por quem já pesquisou e optou por testar com o custo por peça mais reduzido.
-   • Exemplo: "Muita gente que tinha a mesma dúvida acabou escolhendo o de 30 justamente por equilibrar resultado, economia e confiança."
-
-• Finalize com leveza e convite sincero, como:  
-  "Se fizer sentido pra você, posso ajustar aqui antes de finalizar 💙 
-O que acha?"
+ • Traga segurança com provas sociais (Reclame Aqui, número de clientes, rastreio).
+ • Mostre que o de 30 é o mais vendido por quem já pesquisou e optou por testar com o custo por peça mais reduzido.
+ • Exemplo: "Muita gente que tinha a mesma dúvida acabou escolhendo o de 30 justamente por equilibrar resultado, economia e confiança."
+ • Finalize com leveza e convite sincero, como:  "Se fizer sentido pra você, posso ajustar aqui antes de finalizar 💙"
  
 👉 Reforce sempre que a escolha final é da pessoa, mas conduza para a clareza com inteligência emocional e presença.
 
