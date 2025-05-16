@@ -8,7 +8,6 @@ import base64
 import gspread
 from google.oauth2.service_account import Credentials
 from google.cloud import firestore
-from google.oauth2 import service_account
 import time
 from collections import defaultdict
 import threading
@@ -403,7 +402,10 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
         return False
 
 
-def obter_contexto(telefone):
+def obter_contexto(telefone, cache=None):
+    if cache and telefone in cache:
+        return cache[telefone]
+
     try:
         doc = firestore_client.collection("conversas").document(telefone).get()
         if doc.exists:
@@ -413,11 +415,13 @@ def obter_contexto(telefone):
             linhas = [f"{'Cliente' if m['quem']=='cliente' else 'Graziela'}: {m['texto']}" for m in mensagens]
             contexto = f"{resumo}\n" + "\n".join(linhas) if resumo else "\n".join(linhas)
 
-            # Pega emojis já usados nas últimas mensagens da Graziela
             texto_respostas = " ".join([m["texto"] for m in mensagens if m["quem"] == "graziela"])
             emojis_ja_usados = [e for e in ["😊", "💙", "😔"] if e in texto_respostas]
 
-            return contexto, emojis_ja_usados
+            resultado = (contexto, emojis_ja_usados)
+            if cache is not None:
+                cache[telefone] = resultado
+            return resultado
     except Exception as e:
         print(f"❌ Erro ao obter contexto: {e}")
     return "", []
@@ -560,6 +564,28 @@ def identificar_proxima_etapa(resposta_lower):
 
     return None
 
+def precisa_reprocessar(status_data, timeout_segundos=180):
+    agora = datetime.utcnow()
+
+    if not status_data:
+        return True, agora
+
+    iniciado_em_str = status_data.get("iniciado_em")
+    if not iniciado_em_str:
+        return True, agora
+
+    try:
+        iniciado_em = datetime.fromisoformat(iniciado_em_str)
+        tempo_passado = (agora - iniciado_em).total_seconds()
+        if tempo_passado > timeout_segundos:
+            print(f"⏳ Thread travada há {tempo_passado:.1f} segundos. Reprocessando.")
+            return True, agora
+    except Exception as e:
+        print(f"⚠️ Erro ao interpretar timestamp: {e}")
+        return True, agora
+
+    return False, agora
+
 @app.route("/", methods=["GET"])
 def home():
     return "Servidor da Graziela com memória ativa 💬🧠"
@@ -570,7 +596,6 @@ def verify_webhook():
     if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.verify_token") == os.environ.get("VERIFY_TOKEN"):
         return make_response(request.args.get("hub.challenge"), 200)
     return make_response("Erro de verificação", 403)
-
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -606,7 +631,6 @@ def webhook():
                 if transcricao:
                     mensagens_por_remetente[telefone].append((timestamp, transcricao))
 
-        mensagem = ""
         if telefone in mensagens_por_remetente:
             sorted_msgs = sorted(mensagens_por_remetente[telefone], key=lambda x: x[0])
             nova_mensagem = " ".join([txt for _, txt in sorted_msgs]).strip()
@@ -626,31 +650,15 @@ def webhook():
                 print("⏳ Mensagem adicionada à fila temporária.")
 
                 status_doc = firestore_client.collection("status_threads").document(telefone)
-
                 status_data = status_doc.get().to_dict()
-                agora = datetime.utcnow()
-                reprocessar = False
+                reprocessar, agora = precisa_reprocessar(status_data)
 
-if status_data:
-    iniciado_em_str = status_data.get("iniciado_em")
-    if iniciado_em_str:
-        try:
-            iniciado_em = datetime.fromisoformat(iniciado_em_str)
-            if (agora - iniciado_em).total_seconds() > 180:
-                print("⏳ Thread anterior travada há mais de 3 minutos. Reprocessando.")
-                reprocessar = True
-        except Exception as e:
-            print(f"⚠️ Erro ao interpretar timestamp de status_threads: {e}")
-            reprocessar = True
-else:
-    reprocessar = True
-
-if reprocessar:
-    status_doc.set({
-        "em_execucao": True,
-        "iniciado_em": agora.isoformat()
-    })
-    threading.Thread(target=processar_mensagem, args=(telefone,)).start()
+                if reprocessar:
+                    status_doc.set({
+                        "em_execucao": True,
+                        "iniciado_em": agora.isoformat()
+                    })
+                    threading.Thread(target=processar_mensagem, args=(telefone,)).start()
 
             except Exception as e:
                 print(f"❌ Erro ao adicionar à fila temporária: {e}")
@@ -675,10 +683,12 @@ def contem_frase_proibida(texto):
     texto = texto.lower()
     return any(fuzz.partial_ratio(texto, frase) >= 85 for frase in FRASES_PROIBIDAS)
 
-
 def processar_mensagem(telefone):
     try:
         time.sleep(15)
+
+        contexto_cache = {}
+
         temp_ref = firestore_client.collection("conversas_temp").document(telefone)
         temp_doc = temp_ref.get()
         if not temp_doc.exists:
@@ -694,12 +704,12 @@ def processar_mensagem(telefone):
         msg_id = mensagens_ordenadas[-1]["msg_id"]
 
         print(f"🧩 Mensagem completa da fila: {mensagem_completa}")
-        
+
         doc = firestore_client.collection("conversas").document(telefone).get()
         etapa = doc.to_dict().get("etapa", "inicio") if doc.exists else "inicio"
 
         prompt = [{"role": "system", "content": BASE_PROMPT}]
-        contexto, emojis_ja_usados = obter_contexto(telefone)
+        contexto, emojis_ja_usados = obter_contexto(telefone, contexto_cache)
         if contexto:
             prompt.append({"role": "user", "content": f"Histórico da conversa:\n{contexto}"})
         else:
@@ -805,7 +815,6 @@ Mantenha os blocos curtos com até 350 caracteres e separados por **duas quebras
         firestore_client.collection("status_threads").document(telefone).delete()
         firestore_client.collection("conversas_temp").document(telefone).delete()
         print("🧹 Fila temporária e status_threads limpos com segurança.")
-
 
 
 @app.route("/filtrar-etapa/<etapa>", methods=["GET"])
