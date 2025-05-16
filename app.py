@@ -128,7 +128,7 @@ Apresenta algum e-mail para envio do código de rastreio?"
 
 Pix (em blocos):  
 "Excelente! Abaixo, vou te passar a chave Pix (CNPJ) pra gente garantir o seu pedido com agilidade e segurança, tudo bem?"  
-52.940.645/0001-08  
+52.940.645/0001-08
 "Assim que fizer o pagamento, me envia o comprovante aqui mesmo. Assim consigo confirmar rapidinho no sistema e seguir com o envio do seu pedido."
 
 🔍 OBJEÇÕES
@@ -154,10 +154,10 @@ Segurança:
 📦 REFERÊNCIA INTERNA (NÃO RESPONDER DIRETAMENTE)
 
 Kits e preços:  
-- 20 peças – R$99,87  
-- 30 peças – R$129,90 → Mais vendido  
-- 60 peças – R$169,90 → Mais alívio e economia  
-- 120 peças – R$229,90 → Melhor custo-benefício  
+- 20 peças – R$99,87 (à vista recebe 3% de desconto)
+- 30 peças – R$129,90 → Mais vendido (à vista recebe 3% de desconto) 
+- 60 peças – R$169,90 → Mais alívio e economia (à vista recebe 3% de desconto) 
+- 120 peças – R$229,90 → Melhor custo-benefício (à vista recebe 3% de desconto) 
 
 Links:  
 20 peças: https://seguro.lojasportech.com/r/1N5JPRTY2O  
