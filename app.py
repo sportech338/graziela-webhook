@@ -671,17 +671,34 @@ def webhook():
 
 FRASES_PROIBIDAS = [
     "estou à disposição",
-    "qualquer coisa, estou por aqui",
-    "se precisar, me avisa",
     "fico à disposição",
     "estarei por aqui",
+    "qualquer coisa, estou por aqui",
     "qualquer dúvida, me chama",
-    "qualquer coisa, estou disponível"
+    "qualquer coisa, estou disponível",
+    "se precisar, me avisa",
+    "se precisar de algo, me chama",
+    "se precisar, é só chamar",
+    "caso precise de ajuda",
+    "caso tenha dúvidas",
+    "tô aqui se precisar",
+    "estou aqui se precisar",
+    "estou por aqui se precisar",
+    "se tiver dúvidas, me chama",
+    "se tiver alguma dúvida, estou por aqui",
+    "se tiver qualquer dúvida, estou por aqui",
+    "estou aqui para ajudar",
+    "pode contar comigo",
+    "posso ajudar no que precisar",
+    "se quiser, estou por aqui",
+    "se quiser conversar mais, me avisa",
+    "qualquer coisa, estamos à disposição",
+    "qualquer dúvida, é só chamar"
 ]
 
 def contem_frase_proibida(texto):
     texto = texto.lower()
-    return any(fuzz.partial_ratio(texto, frase) >= 85 for frase in FRASES_PROIBIDAS)
+    return any(fuzz.partial_ratio(texto, frase) >= 70 for frase in FRASES_PROIBIDAS)
 
 def processar_mensagem(telefone):
     try:
@@ -736,40 +753,15 @@ def processar_mensagem(telefone):
         if nova_etapa and nova_etapa != etapa:
             print(f"🔁 Etapa atualizada automaticamente: {etapa} → {nova_etapa}")
             etapa = nova_etapa
-
+        
         if contem_frase_proibida(resposta):
-            print("⚠️ Frase passiva proibida detectada. Requisitando reformulação automática...")
-            reformulacao_prompt = [
-                {"role": "system", "content": "Você é Graziela, consultora da Sportech. Reformule a mensagem anterior."},
-                {"role": "user", "content": f"""Essa foi a resposta que você deu:
-
-{resposta}
-
-⚠️ Essa resposta termina com uma frase passiva que não conduz a conversa.
-
-Reescreva de forma gentil e consultiva, **removendo a frase passiva** e encerrando com uma pergunta clara que incentive o cliente a continuar a conversa.
-
-Mantenha os blocos curtos com até 350 caracteres e separados por **duas quebras de linha**."""}
-            ]
-            try:
-                nova_resposta = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=reformulacao_prompt,
-                    temperature=0.4,
-                    max_tokens=300
-                ).choices[0].message.content.strip()
-                print("✅ Resposta reformulada automaticamente.")
-                resposta = nova_resposta
-                resposta, novos_emojis = remover_emojis_repetidos(resposta, emojis_ja_usados)
-            except Exception as e:
-                print(f"❌ Erro ao reformular resposta: {e}")
-                resposta += "\n\n(Por favor, reformule com uma pergunta clara ao final)"
-
+            print("\n🚫 Frase passiva detectada na resposta. Avalie manualmente a necessidade de reformular.\n")
+ 
         resposta_normalizada = resposta.replace("\\n\\n", "\n\n").replace("\\n", "\n")
         blocos, tempos = quebrar_em_blocos_humanizado(resposta_normalizada, limite=350)
         print(f"🔹 Blocos finais para envio:\n{json.dumps(blocos, indent=2, ensure_ascii=False)}")
         resposta_compacta = "\n\n".join(blocos)
-
+       
         etapas_delay = {
             "coletando_dados_pessoais": 40,
             "coletando_endereco": 60,
