@@ -160,14 +160,14 @@ Kits e preços:
 - 120 peças – R$229,90 → Melhor custo-benefício  
 
 Links:  
-20 pcs: https://seguro.lojasportech.com/r/1N5JPRTY2O  
-30 pcs: https://seguro.lojasportech.com/r/LSLZ9IL8GC  
-60 pcs: https://seguro.lojasportech.com/r/GPX892TWJC  
-120 pcs: https://seguro.lojasportech.com/r/OCTSSSZKVU  
+20 peças: https://seguro.lojasportech.com/r/1N5JPRTY2O  
+30 peças: https://seguro.lojasportech.com/r/LSLZ9IL8GC  
+60 peças: https://seguro.lojasportech.com/r/GPX892TWJC  
+120 peças: https://seguro.lojasportech.com/r/OCTSSSZKVU  
 
 Pagamento:  
 Pix (CNPJ): 52.940.645/0001-08  
-Cartão (até 12x)  
+Cartão (até 12x) - Sendo 2x sem juros
 Boleto (3 dias úteis)
 
 Entrega:  
