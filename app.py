@@ -701,8 +701,8 @@ Mantenha os blocos curtos com até 350 caracteres e separados por **duas quebras
     resposta_compacta = "\n\n".join(blocos)
 
     etapas_delay = {
-        "coletando_dados_pessoais": 15,
-        "coletando_endereco": 30,
+        "coletando_dados_pessoais": 40,
+        "coletando_endereco": 60,
         "pagamento_realizado": 15,
         "aguardando_pagamento": 15
     }
