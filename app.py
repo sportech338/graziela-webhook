@@ -227,10 +227,19 @@ firestore_client = firestore.Client(credentials=creds, project=info["project_id"
 def registrar_no_sheets(telefone, mensagem, resposta):
     try:
         gc = gspread.authorize(creds)
-        sheet = gc.open(SPREADSHEET_NAME).sheet1  # ou .worksheet("NomeDaAba") se quiser ser explícito
+        print("✅ Autorizado com gspread")
+
+        planilhas = gc.openall()
+        print("🗂️ Planilhas disponíveis:")
+        for p in planilhas:
+            print("  -", p.title)
+
+        sheet = gc.open(SPREADSHEET_NAME).sheet1
+        print("📄 Planilha acessada:", sheet.title)
+
         agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         sheet.append_row([telefone, mensagem, resposta, agora])
-        print("📄 Conversa registrada no Google Sheets.")
+        print("📌 Linha adicionada ao Google Sheets com sucesso.")
     except Exception as e:
         print(f"❌ Erro ao registrar no Google Sheets: {e}")
 
