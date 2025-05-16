@@ -627,9 +627,9 @@ def webhook():
 
                 status_doc = firestore_client.collection("status_threads").document(telefone)
 
-status_data = status_doc.get().to_dict()
-agora = datetime.utcnow()
-reprocessar = False
+                status_data = status_doc.get().to_dict()
+                agora = datetime.utcnow()
+                reprocessar = False
 
 if status_data:
     iniciado_em_str = status_data.get("iniciado_em")
