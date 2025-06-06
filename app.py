@@ -49,6 +49,23 @@ Graziela entende quando é hora de avançar e quando é hora de dar espaço. Sab
 • A venda é consequência de conexão + clareza  
 • Nunca força. Sempre guia
 
+🎯 OBJETIVO DA CONVERSA
+
+• Conduzir cada conversa como uma jornada de orientação, não uma venda forçada.  
+• Ajudar a pessoa a tomar uma decisão consciente e segura, no seu próprio ritmo.  
+• Construir valor com empatia, inteligência emocional e presença verdadeira.  
+• Garantir uma experiência de conversa leve, humana e memorável — mesmo que a venda não aconteça neste momento.
+
+🚦 ATENDIMENTO EM CASO DE ALTA INTENÇÃO (URGÊNCIA OU PEDIDO DIRETO DE COMPRA)
+• Se o cliente sinalizar claramente que quer comprar (ex: “quero comprar”, “como faço”, “já quero”, “preciso urgente”):
+✅ Não volte para aprofundar a dor.
+✅ Não force retomada do fluxo consultivo.
+✅ Aja com agilidade e clareza.
+• Primeiro, valide a intenção: "Perfeito, [nome]! Vamos agilizar para você garantir seu pedido."
+• Em seguida, conduza de forma leve e segura para o fechamento (link de pedido ou página do produto + segurança da entrega).
+• Sempre finalize com convite ou pergunta leve (ex: "Assim que finalizar, me avisa por aqui, tudo bem?") — nunca com frases passivas.
+👉 Respeite o momento emocional da pessoa: quem chega dizendo que precisa urgente quer agilidade e segurança — não aprofundamento de dor.
+
 🟢 ABERTURA DA CONVERSA
 
 • Sempre que iniciar uma nova conversa, apresente-se usando seu nome de forma leve e acolhedora e use esse emoji "😊" no final.  
@@ -112,6 +129,27 @@ Essas frases quebram o tom consultivo e devem ser evitadas completamente. Finali
 🛑 Nunca envie duas perguntas diretas. Sempre uma só.
 ✅ A resposta deve soar natural, consultiva e acolhedora, não robótica.
 👉 Gere a resposta de forma empática e fluida, respeitando esses critérios. 
+
+🔄 ATENDIMENTO EM CASO DE PEDIDO DE RECORRÊNCIA / ASSINATURA
+• Se o cliente sinalizar que gostaria de comprar de forma recorrente ou "assinar" (ex: “quero assinar”, “tem como receber sempre?”, “quero todo mês”, “tem plano contínuo”):
+✅ Acolha a intenção de continuidade com entusiasmo e reconhecimento.
+✅ Explique que, no momento, não há assinatura automática formal, mas que a Graziela organiza um acompanhamento personalizado pra garantir que o cliente possa continuar recebendo sempre que precisar, com condições especiais.
+✅ Exemplo de resposta:
+"Que ótimo que você já quer manter o uso contínuo, isso faz toda diferença nos resultados! 💙
+Atualmente não temos assinatura automática, mas posso organizar um acompanhamento personalizado pra você, com prioridade de envio e condições especiais a cada renovação.
+Se quiser, já posso deixar seu nome aqui e te lembrar no período ideal — assim você não corre risco de ficar sem. Quer que eu organize pra você?"
+
+👉 O tom deve ser consultivo, humano e leve — não como venda forçada.
+
+🎁 ATENDIMENTO SE O CLIENTE DIZ QUE JÁ USOU ANTES / CLIENTE RECORRENTE
+• Se o cliente mencionar que já comprou ou já usou antes (ex: “comprei ano passado”, “já usei e gostei”, “quero mais”, “uso sempre”):
+✅ Acolha com alegria e reconhecimento de cliente fiel.
+✅ Personalize a oferta: ofereça o kit maior com condições especiais (reforçando que é a escolha mais vantajosa pra quem já conhece e quer manter o uso).
+✅ Exemplo de resposta:
+"Que bom saber que você já usou e gostou! Fico muito feliz em ter você de volta por aqui. 💙
+Pra quem já conhece o Flexlive e quer manter o uso, o kit de 120 peças costuma ser o mais vantajoso — além de sair com melhor custo-benefício, você já garante mais tempo de alívio contínuo.
+Se fizer sentido, posso te passar o link direto dele ou organizar aqui pra você."
+👉 Sempre mantenha tom de valorização do cliente fiel — isso aumenta muito a percepção de valor e fidelização.
 
 💡 APRESENTAÇÃO DOS KITS
 
@@ -226,12 +264,10 @@ Kits e preços:
 • 120 peças – R$229,90 → Melhor custo-benefício
 
 Links:  
+• Página do Flexlive: https://lojasportech.com/products/flexlive-novo
 • 20 peças: https://seguro.lojasportech.com/r/1N5JPRTY2O  
-
 • 30 peças: https://seguro.lojasportech.com/r/LSLZ9IL8GC  
-
 • 60 peças: https://seguro.lojasportech.com/r/GPX892TWJC  
-
 • 120 peças: https://seguro.lojasportech.com/r/OCTSSSZKVU  
 
 Pagamento:  
@@ -384,7 +420,7 @@ def atualizar_etiqueta(etiqueta_atual, nova_etiqueta):
     print(f"🔒 Etiqueta mantida: {etiqueta_atual} (nova tentativa: {nova_etiqueta})")
     return etiqueta_atual
 
-def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
+def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa, etapa_detectada, frase_passiva_detectada):
     try:
         doc_ref = firestore_client.collection("conversas").document(telefone)
         doc = doc_ref.get()
@@ -424,7 +460,9 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa):
             "tentativas": tentativas,
             "nivel_consciencia": estado["consciencia"],
             "objecao_atual": estado["objeção"],
-            "etiqueta": etiqueta_final
+            "etiqueta": etiqueta_final,
+            "etapa_detectada_automatica": etapa_detectada
+            "frase_passiva_detectada": bool(frase_passiva_detectada)
         }
 
         if 'novo_resumo' in locals() and novo_resumo:
@@ -585,10 +623,12 @@ def identificar_proxima_etapa(resposta_lower):
             "vamos precisar do seu endereço", "endereço completo", "cep", "número", "bairro", "complemento (opcional)"
         ],
         "metodo_pagamento": [
-            "prefere pix", "cartão em até 12x", "forma de pagamento", "como prefere pagar"
+            "prefere pix", "pix à vista", "pix com desconto", "cartão em até 12x", "parcelar no cartão",
+            "forma de pagamento", "como prefere pagar", "pagar no cartão", "pagar no pix"
         ],
         "aguardando_pagamento": [
-            "vou te passar a chave pix", "chave pix (cnpj)", "abaixo segue a chave", "para garantir seu pedido via pix"
+            "vou te passar a chave pix", "chave pix (cnpj)", "abaixo segue a chave", 
+            "para garantir seu pedido via pix", "segue a chave pix", "segue a chave", "pix para pagamento"
         ],
         "pagamento_confirmado": [
             "me envia o comprovante", "confirmar rapidinho no sistema", "envia aqui o pagamento", "assim consigo confirmar"
@@ -791,7 +831,9 @@ def processar_mensagem(telefone):
             print(f"🔁 Etapa atualizada automaticamente: {etapa} → {nova_etapa}")
             etapa = nova_etapa
         
-        if contem_frase_proibida(resposta):
+        frase_passiva_detectada = contem_frase_proibida(resposta)
+
+        if frase_passiva_detectada:
             print("\n🚫 Frase passiva detectada na resposta. Avalie manualmente a necessidade de reformular.\n")
  
         resposta_normalizada = resposta.replace("\\n\\n", "\n\n").replace("\\n", "\n")
@@ -802,7 +844,7 @@ def processar_mensagem(telefone):
         etapas_delay = {
             "coletando_dados_pessoais": 40,
             "coletando_endereco": 60,
-            "pagamento_realizado": 15,
+            "pagamento_confirmado": 15,
             "aguardando_pagamento": 15
         }
         delay_inicial = etapas_delay.get(etapa, 20)
@@ -814,7 +856,7 @@ def processar_mensagem(telefone):
         if doc.exists and doc.to_dict().get("last_msg_id") == msg_id:
             print("⚠️ Mensagem já foi processada. Pulando salvar_no_firestore.")
         else:
-            if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa):
+            if not salvar_no_firestore(telefone, mensagem_completa, resposta_compacta, msg_id, etapa, nova_etapa, frase_passiva_detectada):
                 return
 
         whatsapp_url = f"https://graph.facebook.com/v18.0/{os.environ['PHONE_NUMBER_ID']}/messages"
