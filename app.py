@@ -129,7 +129,9 @@ Esse é o mais escolhido por quem sente dor com frequência. Ele rende bem e cos
 Uma opção um pouco mais econômica, já dá pra usar por mais tempo e perceber melhor os resultados.
 
 🟦 Kit com 20 peças – R$99,87
-É o mais básico, ideal pra quem quer testar ou usar de forma pontual."
+É o mais básico, ideal pra quem quer testar ou usar de forma pontual.
+
+Além disso, conseguimos liberar frete grátis! E se não sentir diferença, garantimos a devolução do seu dinheiro.✅"
 
 🎯 Estratégias comportamentais para conduzir com inteligência:
 
