@@ -461,7 +461,7 @@ def salvar_no_firestore(telefone, mensagem, resposta, msg_id, etapa, etapa_detec
             "nivel_consciencia": estado["consciencia"],
             "objecao_atual": estado["objeção"],
             "etiqueta": etiqueta_final,
-            "etapa_detectada_automatica": etapa_detectada
+            "etapa_detectada_automatica": etapa_detectada,
             "frase_passiva_detectada": bool(frase_passiva_detectada)
         }
 
